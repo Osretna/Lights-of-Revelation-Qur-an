@@ -1,14 +1,18 @@
 // Service Worker for "أنوار الوحي" Quran Application
-const CACHE_NAME = 'anwar-alwahy-v1.2.0';
+const CACHE_NAME = 'anwar-alwahy-v1.3.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.svg',
+  '/favicon.png',
+  '/icon-96.png',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable.png',
   '/apple-touch-icon.png',
+  '/screenshot-mobile.png',
+  '/screenshot-desktop.png',
   '/quran-uthmani.json'
 ];
 
@@ -43,11 +47,11 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests and Firebase/Analytics/Audio streaming endpoints (handled by IndexedDB & media engine)
+  // Skip non-GET requests and Firebase/Analytics/Audio streaming endpoints
   if (request.method !== 'GET') return;
   if (url.origin.includes('firebaseio.com') || url.origin.includes('googleapis.com')) return;
 
-  // For Fonts & Images: Cache-First
+  // For Fonts & Static Images: Cache-First
   if (
     url.origin.includes('fonts.googleapis.com') ||
     url.origin.includes('fonts.gstatic.com') ||
