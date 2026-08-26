@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Store user preferences, stats, and saved items across devices",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "lastReadSurah": { "type": "number" },
+        "lastReadAyah": { "type": "number" },
+        "lastReadPage": { "type": "number" },
+        "tasbeehTotal": { "type": "number" },
+        "activeKhatmahsCount": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId"]
+    },
+    "UserBookmark": {
+      "title": "UserBookmark",
+      "description": "Quran bookmarks synced across devices",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "surahNumber": { "type": "number" },
+        "ayahNumber": { "type": "number" },
+        "surahName": { "type": "string" },
+        "ayahText": { "type": "string" },
+        "title": { "type": "string" },
+        "color": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "surahNumber", "ayahNumber"]
+    },
+    "UserKhatmah": {
+      "title": "UserKhatmah",
+      "description": "Synced Quran Khatmah reading plan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "targetDays": { "type": "number" },
+        "startDate": { "type": "string" },
+        "currentDay": { "type": "number" },
+        "completedPages": { "type": "array", "items": { "type": "number" } },
+        "dailyPages": { "type": "number" },
+        "isCompleted": { "type": "boolean" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId", "title"]
+    },
+    "CommunityDuas": {
+      "title": "CommunityDuas",
+      "description": "Shared Islamic supplications and community reflection board",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "likesCount": { "type": "number" },
+        "amenCount": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "content"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document"
+    },
+    "/users/{userId}/bookmarks/{bookmarkId}": {
+      "schema": "UserBookmark",
+      "description": "User Quran bookmarks subcollection"
+    },
+    "/users/{userId}/khatmahs/{khatmahId}": {
+      "schema": "UserKhatmah",
+      "description": "User Khatmahs subcollection"
+    },
+    "/community_duas/{duaId}": {
+      "schema": "CommunityDuas",
+      "description": "Public community prayer board"
+    }
+  }
+}

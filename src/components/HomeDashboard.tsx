@@ -23,6 +23,7 @@ import { useQuran } from '../context/QuranContext';
 import { SURAH_LIST } from '../data/surahList';
 import { RECITERS_LIST } from '../data/recitersData';
 import { playIslamicTone } from '../utils/adhanAudio';
+import { CommunityDuasBoard } from './CommunityDuasBoard';
 
 export const HomeDashboard: React.FC = () => {
   const {
@@ -431,6 +432,9 @@ export const HomeDashboard: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Real-time Firebase Community Duas Board */}
+      <CommunityDuasBoard />
     </div>
   );
 };

@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is signed in
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check document ownership
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if true; // allow reading display info if needed
+      allow write: if isOwner(userId);
+
+      // Subcollection: Bookmarks
+      match /bookmarks/{bookmarkId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Subcollection: Khatmahs
+      match /khatmahs/{khatmahId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Community Duas Board
+    match /community_duas/{duaId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid);
+    }
+  }
+}
