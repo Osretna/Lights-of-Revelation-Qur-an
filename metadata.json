@@ -1,0 +1,6 @@
+{
+  "name": "أنوار الوحي - القرآن الكريم",
+  "description": "تطبيق إسلامي شامل للقرآن الكريم، التلاوات الصوتية، التفاسير، مواقيت الصلاة، اتجاه القبلة، الأذكار وإدارة الختمات",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

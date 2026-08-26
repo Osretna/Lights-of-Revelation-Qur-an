@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+    background-color: #042118;
+    color: #f5f2ed;
+  }
+}
+
+.font-quran {
+  font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
+}
+
+.font-uthmanic {
+  font-family: 'Scheherazade New', 'Amiri Quran', serif;
+}
+
+.font-arabic-title {
+  font-family: 'Reem Kufi', 'Amiri', 'Cairo', serif;
+}
+
+.font-body {
+  font-family: 'Cairo', 'Tajawal', sans-serif;
+}
+
+/* Professional Polish Islamic Geometric & Dot Backgrounds */
+.professional-polish-bg {
+  background-color: #042118;
+  color: #f5f2ed;
+}
+
+.islamic-pattern {
+  background-color: #042118;
+  background-image: radial-gradient(#d4af37 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.islamic-pattern-subtle {
+  background-image: radial-gradient(rgba(212, 175, 55, 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.islamic-frame {
+  border: 2px solid #d4af37;
+  outline: 1px solid rgba(212, 175, 55, 0.4);
+  outline-offset: -5px;
+}
+
+.gold-gradient-text {
+  background: linear-gradient(135deg, #d4af37 0%, #fef3c7 50%, #c19b2e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.emerald-gradient {
+  background: linear-gradient(135deg, #063321 0%, #042118 100%);
+}
+
+.gold-glow {
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+}
+
+.gold-glow-lg {
+  box-shadow: 0 0 35px rgba(212, 175, 55, 0.45);
+}
+
+/* Custom smooth scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(4, 33, 24, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.7);
+}
+
+/* Ayah end symbol styling */
+.ayah-num-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8em;
+  height: 1.8em;
+  border-radius: 50%;
+  border: 1.5px solid #d4af37;
+  font-size: 0.7em;
+  margin: 0 0.25em;
+  color: #d4af37;
+  font-weight: 700;
+  vertical-align: middle;
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.2) 0%, rgba(6, 51, 33, 0.8) 100%);
+}
+
