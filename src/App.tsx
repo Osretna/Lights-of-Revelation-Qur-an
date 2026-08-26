@@ -24,6 +24,7 @@ import { AyahDetailModal } from './components/AyahDetailModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { SettingsModal } from './components/SettingsModal';
 import { SponsorshipBanner } from './components/SponsorshipBanner';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
 
 const AppContent: React.FC = () => {
   const {
@@ -99,6 +100,9 @@ const AppContent: React.FC = () => {
       <AyahDetailModal />
       {showProfileModal && <UserProfileModal onClose={() => setShowProfileModal(false)} />}
       {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} />}
+
+      {/* PWA Android / Mobile Install Banner */}
+      <PWAInstallBanner />
 
       {/* Global Toast Notification */}
       {toastMessage && (

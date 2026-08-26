@@ -1,0 +1,74 @@
+{
+  "name": "أنوار الوحي - القرآن الكريم الشامل",
+  "short_name": "أنوار الوحي",
+  "id": "com.anwaralwahy.quranapp",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay", "minimal-ui"],
+  "background_color": "#022c22",
+  "theme_color": "#064e3b",
+  "orientation": "portrait-primary",
+  "lang": "ar",
+  "dir": "rtl",
+  "description": "تطبيق إسلامي فاخر يجمع بين القرآن الكريم تلاوة وتفسيراً، كبار القراء، مواقيت الصلاة الدقيقة، اتجاه القبلة، الأذكار وإدارة الختمات بدون إنترنت.",
+  "categories": ["education", "lifestyle", "books", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "المصحف الشريف",
+      "short_name": "المصحف",
+      "description": "قراءة القرآن الكريم بالرسم العثماني والتفسير الميسر",
+      "url": "/?tab=quran",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "التلاوات الصوتية",
+      "short_name": "التلاوات",
+      "description": "الاستماع لكبار القراء مع حفظ السور بدون نت",
+      "url": "/?tab=audio",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "مواقيت الصلاة والقبلة",
+      "short_name": "الصلاة",
+      "description": "مواقيت الصلاة الدقيقة والأذان وبوصلة القبلة",
+      "url": "/?tab=prayer",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "حصن المسلم والأذكار",
+      "short_name": "الأذكار",
+      "description": "أذكار الصباح والمساء والسبحة الإلكترونية",
+      "url": "/?tab=azkar",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

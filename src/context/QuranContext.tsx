@@ -674,11 +674,19 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const resumeAudio = () => {
     if (audioRef.current) {
       if (!audioRef.current.src || audioRef.current.src === '') {
-        playAyahAudio(audioState.surahNumber, audioState.ayahNumber);
+        if (audioState.audioMode === 'surah') {
+          playSurahFullAudio(audioState.surahNumber, audioState.reciter.id);
+        } else {
+          playAyahAudio(audioState.surahNumber, audioState.ayahNumber, audioState.reciter.id);
+        }
       } else {
         audioRef.current.play().catch(e => {
           console.warn('Resume audio failed:', e);
-          playAyahAudio(audioState.surahNumber, audioState.ayahNumber);
+          if (audioState.audioMode === 'surah') {
+            playSurahFullAudio(audioState.surahNumber, audioState.reciter.id);
+          } else {
+            playAyahAudio(audioState.surahNumber, audioState.ayahNumber, audioState.reciter.id);
+          }
         });
       }
     }
@@ -689,7 +697,11 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       pauseAudio();
     } else {
       if (!audioRef.current?.src || audioRef.current.src === '') {
-        playSurahAudio(selectedSurahNum);
+        if (audioState.audioMode === 'surah') {
+          playSurahFullAudio(selectedSurahNum, audioState.reciter.id);
+        } else {
+          playSurahAudio(selectedSurahNum, audioState.reciter.id);
+        }
       } else {
         resumeAudio();
       }
@@ -712,7 +724,11 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setAudioState(prev => ({ ...prev, reciter }));
     updateSettings({ selectedReciterId: reciter.id });
     if (audioState.isPlaying) {
-      playAyahAudio(audioState.surahNumber, audioState.ayahNumber, reciter.id);
+      if (audioState.audioMode === 'surah') {
+        playSurahFullAudio(audioState.surahNumber, reciter.id);
+      } else {
+        playAyahAudio(audioState.surahNumber, audioState.ayahNumber, reciter.id);
+      }
     }
   };
 
@@ -723,6 +739,14 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const skipNextAyah = () => {
+    if (audioState.audioMode === 'surah') {
+      if (audioState.surahNumber < 114) {
+        const next = audioState.surahNumber + 1;
+        setSelectedSurahNum(next);
+        playSurahFullAudio(next, audioState.reciter.id);
+      }
+      return;
+    }
     const sMeta = SURAH_LIST.find(s => s.number === audioState.surahNumber);
     if (sMeta && audioState.ayahNumber < sMeta.numberOfAyahs) {
       playAyahAudio(audioState.surahNumber, audioState.ayahNumber + 1);
@@ -733,6 +757,14 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const skipPrevAyah = () => {
+    if (audioState.audioMode === 'surah') {
+      if (audioState.surahNumber > 1) {
+        const prev = audioState.surahNumber - 1;
+        setSelectedSurahNum(prev);
+        playSurahFullAudio(prev, audioState.reciter.id);
+      }
+      return;
+    }
     if (audioState.ayahNumber > 1) {
       playAyahAudio(audioState.surahNumber, audioState.ayahNumber - 1);
     } else if (audioState.surahNumber > 1) {

@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#022c22" />
+      <stop offset="50%" stop-color="#064e3b" />
+      <stop offset="100%" stop-color="#022c22" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#eab308" />
+      <stop offset="100%" stop-color="#ca8a04" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background with rounded corners -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="none" stroke="url(#goldGrad)" stroke-width="4" opacity="0.4" />
+
+  <!-- Radiance Rays -->
+  <circle cx="256" cy="240" r="140" fill="#fef08a" opacity="0.08" filter="url(#glow)" />
+
+  <!-- Islamic Star Geometric Background Accent -->
+  <g transform="translate(256, 240) scale(0.85)" opacity="0.25" stroke="url(#goldGrad)" stroke-width="2" fill="none">
+    <rect x="-90" y="-90" width="180" height="180" />
+    <rect x="-90" y="-90" width="180" height="180" transform="rotate(45)" />
+  </g>
+
+  <!-- Open Holy Quran Book Silhouette -->
+  <g transform="translate(0, 10)">
+    <!-- Book Stand / Rihal (حامل المصحف) -->
+    <path d="M190 350 L256 310 L322 350 L340 380 L256 335 L172 380 Z" fill="url(#goldGrad)" opacity="0.9" />
+    <path d="M210 380 L256 350 L302 380 L256 360 Z" fill="#ca8a04" />
+
+    <!-- Open Quran Pages -->
+    <!-- Left Page -->
+    <path d="M256 160 C210 145 150 145 100 165 C95 167 90 172 90 178 L90 310 C90 316 95 321 100 319 C150 300 210 300 256 315 Z" fill="#fffbeb" />
+    <path d="M256 165 C215 152 155 152 108 170 L108 312 C155 295 215 295 256 308 Z" fill="none" stroke="url(#goldGrad)" stroke-width="3" />
+    
+    <!-- Right Page -->
+    <path d="M256 160 C302 145 362 145 412 165 C417 167 422 172 422 178 L422 310 C422 316 417 321 412 319 C362 300 302 300 256 315 Z" fill="#fffbeb" />
+    <path d="M256 165 C297 152 357 152 404 170 L404 312 C357 295 297 295 256 308 Z" fill="none" stroke="url(#goldGrad)" stroke-width="3" />
+
+    <!-- Quran Binding Spine -->
+    <line x1="256" y1="155" x2="256" y2="318" stroke="#ca8a04" stroke-width="4" />
+
+    <!-- Decorative Arabic Calligraphy Lines on Pages -->
+    <g opacity="0.6" stroke="#b45309" stroke-width="2.5" stroke-linecap="round">
+      <!-- Left Lines -->
+      <line x1="125" y1="195" x2="230" y2="185" />
+      <line x1="125" y1="220" x2="230" y2="210" />
+      <line x1="125" y1="245" x2="230" y2="235" />
+      <line x1="125" y1="270" x2="230" y2="260" />
+
+      <!-- Right Lines -->
+      <line x1="282" y1="185" x2="387" y2="195" />
+      <line x1="282" y1="210" x2="387" y2="220" />
+      <line x1="282" y1="235" x2="387" y2="245" />
+      <line x1="282" y1="260" x2="387" y2="270" />
+    </g>
+
+    <!-- Golden Center Star / Medallion -->
+    <circle cx="256" cy="235" r="14" fill="url(#goldGrad)" />
+    <circle cx="256" cy="235" r="9" fill="#064e3b" />
+    <circle cx="256" cy="235" r="4" fill="url(#goldGrad)" />
+  </g>
+
+  <!-- Golden Crescent & Star at the Top -->
+  <g transform="translate(256, 95) scale(0.65)">
+    <path d="M0 -35 A 35 35 0 1 0 32 15 A 28 28 0 1 1 0 -35 Z" fill="url(#goldGrad)" />
+    <polygon points="12,-20 16,-8 28,-8 18,0 22,12 12,4 2,12 6,0 -4,-8 8,-8" fill="url(#goldGrad)" />
+  </g>
+</svg>

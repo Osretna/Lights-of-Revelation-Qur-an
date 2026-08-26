@@ -255,12 +255,15 @@ export const RECITERS_LIST: Reciter[] = [
     serverUrl: 'https://everyayah.com/data/Abdul_Basit_Mujawwad_128kbps/',
     surahAudioUrlPattern: (surahNum: number) => {
       const padded = surahNum.toString().padStart(3, '0');
-      return `https://download.quranicaudio.com/quran/abdulbaset_mujawwad/${padded}.mp3`;
+      return `https://server7.mp3quran.net/basit/Almusshaf-Al-Mojawwad/${padded}.mp3`;
     },
     surahAudioUrls: (surahNum: number) => {
       const padded = surahNum.toString().padStart(3, '0');
       return [
-        `https://download.quranicaudio.com/quran/abdulbaset_mujawwad/${padded}.mp3`
+        `https://server7.mp3quran.net/basit/Almusshaf-Al-Mojawwad/${padded}.mp3`,
+        `https://download.quranicaudio.com/quran/abdulbaset_mujawwad/${padded}.mp3`,
+        `https://cdn.islamic.network/quran/audio-surah/128/ar.abdulbasitmujawwad/${surahNum}.mp3`,
+        `https://server7.mp3quran.net/basit/${padded}.mp3`
       ];
     },
     ayahAudioUrlPattern: (surahNum: number, ayahNum: number) => {
@@ -272,7 +275,9 @@ export const RECITERS_LIST: Reciter[] = [
       const s = surahNum.toString().padStart(3, '0');
       const a = ayahNum.toString().padStart(3, '0');
       return [
-        `https://everyayah.com/data/Abdul_Basit_Mujawwad_128kbps/${s}${a}.mp3`
+        `https://everyayah.com/data/Abdul_Basit_Mujawwad_128kbps/${s}${a}.mp3`,
+        `https://cdn.islamic.network/quran/audio/128/ar.abdulbasitmujawwad/${surahNum}:${ayahNum}.mp3`,
+        `https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/${s}${a}.mp3`
       ];
     }
   },
@@ -284,12 +289,14 @@ export const RECITERS_LIST: Reciter[] = [
     serverUrl: 'https://everyayah.com/data/Minshawy_Mujawwad_192kbps/',
     surahAudioUrlPattern: (surahNum: number) => {
       const padded = surahNum.toString().padStart(3, '0');
-      return `https://download.quranicaudio.com/quran/minshawi_mujawwad/${padded}.mp3`;
+      return `https://server10.mp3quran.net/minsh/Almusshaf-Al-Mojawwad/${padded}.mp3`;
     },
     surahAudioUrls: (surahNum: number) => {
       const padded = surahNum.toString().padStart(3, '0');
       return [
-        `https://download.quranicaudio.com/quran/minshawi_mujawwad/${padded}.mp3`
+        `https://server10.mp3quran.net/minsh/Almusshaf-Al-Mojawwad/${padded}.mp3`,
+        `https://download.quranicaudio.com/quran/minshawi_mujawwad/${padded}.mp3`,
+        `https://server10.mp3quran.net/minsh/${padded}.mp3`
       ];
     },
     ayahAudioUrlPattern: (surahNum: number, ayahNum: number) => {
@@ -301,7 +308,38 @@ export const RECITERS_LIST: Reciter[] = [
       const s = surahNum.toString().padStart(3, '0');
       const a = ayahNum.toString().padStart(3, '0');
       return [
-        `https://everyayah.com/data/Minshawy_Mujawwad_192kbps/${s}${a}.mp3`
+        `https://everyayah.com/data/Minshawy_Mujawwad_192kbps/${s}${a}.mp3`,
+        `https://everyayah.com/data/Minshawy_Murattal_128kbps/${s}${a}.mp3`
+      ];
+    }
+  },
+  {
+    id: 'husary_mujawwad',
+    name: 'محمود خليل الحصري',
+    style: 'مجود',
+    bitrate: '128 kbps',
+    serverUrl: 'https://everyayah.com/data/Husary_128kbps/',
+    surahAudioUrlPattern: (surahNum: number) => {
+      const padded = surahNum.toString().padStart(3, '0');
+      return `https://server13.mp3quran.net/husr/Almusshaf-Al-Mojawwad/${padded}.mp3`;
+    },
+    surahAudioUrls: (surahNum: number) => {
+      const padded = surahNum.toString().padStart(3, '0');
+      return [
+        `https://server13.mp3quran.net/husr/Almusshaf-Al-Mojawwad/${padded}.mp3`,
+        `https://server13.mp3quran.net/husr/${padded}.mp3`
+      ];
+    },
+    ayahAudioUrlPattern: (surahNum: number, ayahNum: number) => {
+      const s = surahNum.toString().padStart(3, '0');
+      const a = ayahNum.toString().padStart(3, '0');
+      return `https://everyayah.com/data/Husary_128kbps/${s}${a}.mp3`;
+    },
+    ayahAudioUrls: (surahNum: number, ayahNum: number) => {
+      const s = surahNum.toString().padStart(3, '0');
+      const a = ayahNum.toString().padStart(3, '0');
+      return [
+        `https://everyayah.com/data/Husary_128kbps/${s}${a}.mp3`
       ];
     }
   }
