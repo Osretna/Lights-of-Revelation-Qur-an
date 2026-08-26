@@ -13,6 +13,7 @@ import { SURAH_LIST } from '../data/surahList';
 import { RECITERS_LIST } from '../data/recitersData';
 import { calculatePrayerTimes, getNextPrayer, NextPrayerInfo, POPULAR_CITIES } from '../utils/prayerCalculator';
 import { getSurahDetail } from '../data/quranSampleData';
+import { getOfflineSurahBlobUrl, isSurahSavedOffline } from '../utils/offlineAudioStorage';
 
 export type AppTab =
   | 'home'
@@ -29,8 +30,9 @@ export type AppTab =
   | 'admin'
   | 'settings';
 
-interface AudioState {
+export interface AudioState {
   isPlaying: boolean;
+  isLoading: boolean;
   surahNumber: number;
   ayahNumber: number;
   reciter: Reciter;
@@ -38,6 +40,7 @@ interface AudioState {
   duration: number;
   playbackSpeed: number;
   repeatMode: 'none' | 'ayah' | 'surah';
+  audioMode: 'ayah' | 'surah';
   audioElement: HTMLAudioElement | null;
 }
 
@@ -72,6 +75,7 @@ interface QuranContextType {
   // Audio Player
   audioState: AudioState;
   playSurahAudio: (surahNum: number, reciterId?: string) => void;
+  playSurahFullAudio: (surahNum: number, reciterId?: string) => void;
   playAyahAudio: (surahNum: number, ayahNum: number, reciterId?: string) => void;
   pauseAudio: () => void;
   resumeAudio: () => void;
@@ -378,10 +382,14 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Audio State & HTML5 Audio element
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fallbackUrlsRef = useRef<string[]>([]);
+  const isPlayingRef = useRef<boolean>(false);
+
   const [audioState, setAudioState] = useState<AudioState>(() => {
     const initialReciter = RECITERS_LIST.find(r => r.id === DEFAULT_SETTINGS.selectedReciterId) || RECITERS_LIST[0];
     return {
       isPlaying: false,
+      isLoading: false,
       surahNumber: 1,
       ayahNumber: 1,
       reciter: initialReciter,
@@ -389,13 +397,55 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       duration: 0,
       playbackSpeed: 1,
       repeatMode: 'none',
+      audioMode: 'ayah',
       audioElement: null
     };
   });
 
+  // Helper to load and play audio with automatic multi-CDN fallback
+  const startAudioPlayback = (urls: string[], speed: number) => {
+    if (!audioRef.current || urls.length === 0) return;
+    
+    fallbackUrlsRef.current = urls.slice(1);
+    setAudioState(prev => ({ ...prev, isLoading: true }));
+
+    const audio = audioRef.current;
+    audio.playbackRate = speed;
+    audio.src = urls[0];
+    audio.load();
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          isPlayingRef.current = true;
+          setAudioState(prev => ({ ...prev, isPlaying: true, isLoading: false }));
+        })
+        .catch(err => {
+          console.warn('Audio play attempt error:', err);
+          // Try next fallback immediately
+          if (fallbackUrlsRef.current.length > 0) {
+            const nextUrl = fallbackUrlsRef.current.shift()!;
+            audio.src = nextUrl;
+            audio.load();
+            audio.play().catch(e => {
+              console.warn('Fallback audio failed:', e);
+              isPlayingRef.current = false;
+              setAudioState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
+            });
+          } else {
+            isPlayingRef.current = false;
+            setAudioState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
+          }
+        });
+    }
+  };
+
   // Initialize Audio Element
   useEffect(() => {
     const audio = new Audio();
+    audio.preload = 'auto';
+    audio.volume = 1.0;
     audioRef.current = audio;
 
     const onTimeUpdate = () => {
@@ -409,12 +459,42 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const onLoadedMetadata = () => {
       setAudioState(prev => ({
         ...prev,
-        duration: audio.duration || 0
+        duration: audio.duration || 0,
+        isLoading: false
       }));
     };
 
-    const onPlay = () => setAudioState(prev => ({ ...prev, isPlaying: true }));
-    const onPause = () => setAudioState(prev => ({ ...prev, isPlaying: false }));
+    const onCanPlay = () => {
+      setAudioState(prev => ({ ...prev, isLoading: false }));
+    };
+
+    const onWaiting = () => {
+      setAudioState(prev => ({ ...prev, isLoading: true }));
+    };
+
+    const onPlay = () => {
+      isPlayingRef.current = true;
+      setAudioState(prev => ({ ...prev, isPlaying: true, isLoading: false }));
+    };
+
+    const onPause = () => {
+      isPlayingRef.current = false;
+      setAudioState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
+    };
+
+    const onError = () => {
+      console.warn('Audio element error encountered on:', audio.src);
+      if (fallbackUrlsRef.current.length > 0) {
+        const nextUrl = fallbackUrlsRef.current.shift()!;
+        console.log('Switching to fallback audio source:', nextUrl);
+        audio.src = nextUrl;
+        audio.load();
+        audio.play().catch(() => {});
+      } else {
+        isPlayingRef.current = false;
+        setAudioState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
+      }
+    };
     
     const onEnded = () => {
       setAudioState(current => {
@@ -422,25 +502,57 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.currentTime = 0;
           audio.play().catch(() => {});
           return current;
-        } else {
+        }
+
+        if (current.audioMode === 'ayah') {
           // Play next Ayah in Surah
           const sMeta = SURAH_LIST.find(s => s.number === current.surahNumber);
           if (sMeta && current.ayahNumber < sMeta.numberOfAyahs) {
             const nextAyah = current.ayahNumber + 1;
-            const nextUrl = current.reciter.ayahAudioUrlPattern(current.surahNumber, nextAyah);
-            audio.src = nextUrl;
-            audio.play().catch(() => {});
+            const urls = current.reciter.ayahAudioUrls
+              ? current.reciter.ayahAudioUrls(current.surahNumber, nextAyah)
+              : [current.reciter.ayahAudioUrlPattern(current.surahNumber, nextAyah)];
+            
+            startAudioPlayback(urls, current.playbackSpeed);
             return {
               ...current,
               ayahNumber: nextAyah,
               isPlaying: true
             };
           } else if (current.repeatMode === 'surah') {
-            const firstUrl = current.reciter.ayahAudioUrlPattern(current.surahNumber, 1);
-            audio.src = firstUrl;
-            audio.play().catch(() => {});
+            const urls = current.reciter.ayahAudioUrls
+              ? current.reciter.ayahAudioUrls(current.surahNumber, 1)
+              : [current.reciter.ayahAudioUrlPattern(current.surahNumber, 1)];
+            
+            startAudioPlayback(urls, current.playbackSpeed);
             return {
               ...current,
+              ayahNumber: 1,
+              isPlaying: true
+            };
+          } else {
+            // Surah finished
+            return {
+              ...current,
+              isPlaying: false,
+              currentTime: 0
+            };
+          }
+        } else {
+          // Full Surah Mode ended
+          if (current.repeatMode === 'surah') {
+            audio.currentTime = 0;
+            audio.play().catch(() => {});
+            return current;
+          } else if (current.surahNumber < 114) {
+            const nextSurah = current.surahNumber + 1;
+            const urls = current.reciter.surahAudioUrls
+              ? current.reciter.surahAudioUrls(nextSurah)
+              : [current.reciter.surahAudioUrlPattern(nextSurah)];
+            startAudioPlayback(urls, current.playbackSpeed);
+            return {
+              ...current,
+              surahNumber: nextSurah,
               ayahNumber: 1,
               isPlaying: true
             };
@@ -457,29 +569,40 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('canplay', onCanPlay);
+    audio.addEventListener('waiting', onWaiting);
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
+    audio.addEventListener('error', onError);
     audio.addEventListener('ended', onEnded);
 
     return () => {
       audio.pause();
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('canplay', onCanPlay);
+      audio.removeEventListener('waiting', onWaiting);
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('error', onError);
       audio.removeEventListener('ended', onEnded);
     };
   }, []);
 
-  const playSurahAudio = (surahNum: number, reciterId?: string) => {
+  const playSurahAudio = async (surahNum: number, reciterId?: string) => {
     const targetReciter = reciterId ? (RECITERS_LIST.find(r => r.id === reciterId) || audioState.reciter) : audioState.reciter;
-    const url = targetReciter.surahAudioUrlPattern(surahNum);
+    
+    // Check if offline cached audio exists first
+    const offlineBlobUrl = await getOfflineSurahBlobUrl(targetReciter.id, surahNum);
 
-    if (audioRef.current) {
-      audioRef.current.src = url;
-      audioRef.current.playbackRate = audioState.playbackSpeed;
-      audioRef.current.play().catch(e => console.warn('Audio playback error', e));
-    }
+    // In Quran reading experience, play verse-by-verse starting from Ayah 1 (or current ayah) with real-time text highlight
+    const ayahUrls = targetReciter.ayahAudioUrls
+      ? targetReciter.ayahAudioUrls(surahNum, 1)
+      : [targetReciter.ayahAudioUrlPattern(surahNum, 1)];
+
+    const finalUrls = offlineBlobUrl ? [offlineBlobUrl, ...ayahUrls] : ayahUrls;
+
+    startAudioPlayback(finalUrls, audioState.playbackSpeed);
 
     setAudioState(prev => ({
       ...prev,
@@ -487,22 +610,49 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       surahNumber: surahNum,
       ayahNumber: 1,
       reciter: targetReciter,
+      audioMode: 'ayah',
       currentTime: 0
     }));
 
     const sMeta = SURAH_LIST.find(s => s.number === surahNum);
-    showToast(`جاري تشغيل سورة ${sMeta?.name || surahNum} بصوت ${targetReciter.name} 🎧`);
+    showToast(`تلاوة سورة ${sMeta?.name || surahNum} بصوت ${targetReciter.name} 🎧`);
+  };
+
+  const playSurahFullAudio = async (surahNum: number, reciterId?: string) => {
+    const targetReciter = reciterId ? (RECITERS_LIST.find(r => r.id === reciterId) || audioState.reciter) : audioState.reciter;
+    
+    // Check if offline cached audio exists first
+    const offlineBlobUrl = await getOfflineSurahBlobUrl(targetReciter.id, surahNum);
+
+    const fullUrls = targetReciter.surahAudioUrls
+      ? targetReciter.surahAudioUrls(surahNum)
+      : [targetReciter.surahAudioUrlPattern(surahNum)];
+
+    const finalUrls = offlineBlobUrl ? [offlineBlobUrl, ...fullUrls] : fullUrls;
+
+    startAudioPlayback(finalUrls, audioState.playbackSpeed);
+
+    setAudioState(prev => ({
+      ...prev,
+      isPlaying: true,
+      surahNumber: surahNum,
+      ayahNumber: 1,
+      reciter: targetReciter,
+      audioMode: 'surah',
+      currentTime: 0
+    }));
+
+    const sMeta = SURAH_LIST.find(s => s.number === surahNum);
+    showToast(`استماع كامل لسورة ${sMeta?.name || surahNum} بصوت ${targetReciter.name} 🎧`);
   };
 
   const playAyahAudio = (surahNum: number, ayahNum: number, reciterId?: string) => {
     const targetReciter = reciterId ? (RECITERS_LIST.find(r => r.id === reciterId) || audioState.reciter) : audioState.reciter;
-    const url = targetReciter.ayahAudioUrlPattern(surahNum, ayahNum);
+    const urls = targetReciter.ayahAudioUrls
+      ? targetReciter.ayahAudioUrls(surahNum, ayahNum)
+      : [targetReciter.ayahAudioUrlPattern(surahNum, ayahNum)];
 
-    if (audioRef.current) {
-      audioRef.current.src = url;
-      audioRef.current.playbackRate = audioState.playbackSpeed;
-      audioRef.current.play().catch(e => console.warn('Audio playback error', e));
-    }
+    startAudioPlayback(urls, audioState.playbackSpeed);
 
     setAudioState(prev => ({
       ...prev,
@@ -510,6 +660,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       surahNumber: surahNum,
       ayahNumber: ayahNum,
       reciter: targetReciter,
+      audioMode: 'ayah',
       currentTime: 0
     }));
   };
@@ -522,7 +673,14 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const resumeAudio = () => {
     if (audioRef.current) {
-      audioRef.current.play().catch(() => {});
+      if (!audioRef.current.src || audioRef.current.src === '') {
+        playAyahAudio(audioState.surahNumber, audioState.ayahNumber);
+      } else {
+        audioRef.current.play().catch(e => {
+          console.warn('Resume audio failed:', e);
+          playAyahAudio(audioState.surahNumber, audioState.ayahNumber);
+        });
+      }
     }
   };
 
@@ -569,6 +727,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (sMeta && audioState.ayahNumber < sMeta.numberOfAyahs) {
       playAyahAudio(audioState.surahNumber, audioState.ayahNumber + 1);
     } else if (audioState.surahNumber < 114) {
+      setSelectedSurahNum(audioState.surahNumber + 1);
       playAyahAudio(audioState.surahNumber + 1, 1);
     }
   };
@@ -578,6 +737,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       playAyahAudio(audioState.surahNumber, audioState.ayahNumber - 1);
     } else if (audioState.surahNumber > 1) {
       const prevSurahMeta = SURAH_LIST.find(s => s.number === audioState.surahNumber - 1);
+      setSelectedSurahNum(audioState.surahNumber - 1);
       playAyahAudio(audioState.surahNumber - 1, prevSurahMeta?.numberOfAyahs || 1);
     }
   };
@@ -674,6 +834,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteKhatmah,
         audioState,
         playSurahAudio,
+        playSurahFullAudio,
         playAyahAudio,
         pauseAudio,
         resumeAudio,

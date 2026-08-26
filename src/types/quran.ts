@@ -37,6 +37,8 @@ export interface Reciter {
   serverUrl: string; // e.g. https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/ or mp3quran
   surahAudioUrlPattern: (surahNum: number) => string;
   ayahAudioUrlPattern: (surahNum: number, ayahNumInSurah: number) => string;
+  surahAudioUrls?: (surahNum: number) => string[];
+  ayahAudioUrls?: (surahNum: number, ayahNumInSurah: number) => string[];
   photo?: string;
   bitrate: string;
 }

@@ -13,7 +13,8 @@ import {
   Minimize2,
   X,
   Clock,
-  ListMusic
+  ListMusic,
+  Loader2
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 import { SURAH_LIST } from '../data/surahList';
@@ -122,7 +123,9 @@ export const AudioPlayerBar: React.FC = () => {
                   onClick={togglePlayPause}
                   className="w-10 h-10 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-emerald-950 flex items-center justify-center shadow-lg gold-glow transition-transform active:scale-95"
                 >
-                  {audioState.isPlaying ? (
+                  {audioState.isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-emerald-950" />
+                  ) : audioState.isPlaying ? (
                     <Pause className="w-5 h-5 fill-emerald-950" />
                   ) : (
                     <Play className="w-5 h-5 fill-emerald-950 ml-0.5" />
@@ -256,7 +259,9 @@ export const AudioPlayerBar: React.FC = () => {
                   onClick={togglePlayPause}
                   className="w-16 h-16 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-emerald-950 flex items-center justify-center shadow-xl gold-glow active:scale-95 transition-all"
                 >
-                  {audioState.isPlaying ? (
+                  {audioState.isLoading ? (
+                    <Loader2 className="w-8 h-8 animate-spin text-emerald-950" />
+                  ) : audioState.isPlaying ? (
                     <Pause className="w-8 h-8 fill-emerald-950" />
                   ) : (
                     <Play className="w-8 h-8 fill-emerald-950 ml-1" />

@@ -17,7 +17,8 @@ import {
   Sparkles,
   SlidersHorizontal,
   Volume2,
-  Check
+  Check,
+  Loader2
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 import { SURAH_LIST, JUZ_LIST } from '../data/surahList';
@@ -249,15 +250,50 @@ export const QuranReader: React.FC = () => {
           </button>
 
           {/* Full Surah Audio Player */}
-          <button
-            id="quran-play-surah-btn"
-            onClick={() => playSurahAudio(selectedSurahNum)}
-            title="استماع للسورة كاملة"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 text-xs font-bold shadow-sm gold-glow transition-all active:scale-95"
-          >
-            <Play className="w-3.5 h-3.5 fill-emerald-950" />
-            <span className="hidden sm:inline">تشغيل السورة</span>
-          </button>
+          {(() => {
+            const isThisSurahPlaying = audioState.isPlaying && audioState.surahNumber === selectedSurahNum;
+            const isThisSurahLoading = audioState.isLoading && audioState.surahNumber === selectedSurahNum;
+
+            return (
+              <button
+                id="quran-play-surah-btn"
+                onClick={() => {
+                  if (isThisSurahPlaying) {
+                    pauseAudio();
+                  } else if (audioState.surahNumber === selectedSurahNum && audioState.ayahNumber > 1) {
+                    playAyahAudio(selectedSurahNum, audioState.ayahNumber);
+                  } else {
+                    playSurahAudio(selectedSurahNum);
+                  }
+                }}
+                title={isThisSurahPlaying ? "إيقاف مؤقت للتلاوة" : "استماع لتلاوة السورة"}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 ${
+                  isThisSurahPlaying
+                    ? 'bg-emerald-800 text-amber-300 border border-amber-400/50 gold-glow'
+                    : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 gold-glow'
+                }`}
+              >
+                {isThisSurahLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                ) : isThisSurahPlaying ? (
+                  <>
+                    <Pause className="w-3.5 h-3.5 fill-amber-300" />
+                    {/* Animated sound wave bars */}
+                    <span className="flex items-center gap-0.5 h-3">
+                      <span className="w-0.5 h-2 bg-amber-400 animate-pulse rounded-full" />
+                      <span className="w-0.5 h-3 bg-amber-300 animate-pulse delay-75 rounded-full" />
+                      <span className="w-0.5 h-1.5 bg-amber-400 animate-pulse delay-150 rounded-full" />
+                    </span>
+                  </>
+                ) : (
+                  <Play className="w-3.5 h-3.5 fill-emerald-950" />
+                )}
+                <span className="hidden sm:inline">
+                  {isThisSurahLoading ? 'جاري التحميل...' : isThisSurahPlaying ? 'إيقاف التلاوة' : 'تشغيل السورة'}
+                </span>
+              </button>
+            );
+          })()}
 
           {/* Appearance Modal trigger */}
           <button
