@@ -38,6 +38,7 @@ export const AzkarSection: React.FC = () => {
       case 'BedDouble': return <BedDouble className="w-5 h-5 text-purple-400" />;
       case 'Flame': return <Flame className="w-5 h-5 text-rose-500" />;
       case 'Compass': return <Compass className="w-5 h-5 text-teal-400" />;
+      case 'Volume2': return <Volume2 className="w-5 h-5 text-amber-400" />;
       case 'BookOpen':
       default: return <BookOpen className="w-5 h-5 text-emerald-400" />;
     }

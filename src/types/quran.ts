@@ -69,7 +69,7 @@ export interface PrayerTimeData {
 
 export interface ZikrItem {
   id: string;
-  category: 'sabah' | 'masaa' | 'sleep' | 'post_prayer' | 'mosque' | 'quran_dua';
+  category: 'sabah' | 'masaa' | 'sleep' | 'post_prayer' | 'mosque' | 'adhan' | 'quran_dua';
   text: string;
   count: number;
   repeatTarget: number;

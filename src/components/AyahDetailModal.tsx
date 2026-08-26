@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import {
   BookMarked,
   Play,
   Pause,
   Bookmark,
   Copy,
-  Share2,
   Repeat,
   Sparkles,
   X,
   Volume2,
-  Check
+  Check,
+  Loader2,
+  User
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
-import { TAFSIR_SCHOLARS, getTafsirForAyah } from '../data/tafsirData';
+import { TAFSIR_SCHOLARS, getTafsirForAyah, fetchLiveTafsirForAyah } from '../data/tafsirData';
+import { RECITERS_LIST } from '../data/recitersData';
 import { TafsirScholar } from '../types/quran';
 
 export const AyahDetailModal: React.FC = () => {
@@ -29,12 +31,51 @@ export const AyahDetailModal: React.FC = () => {
     playAyahAudio,
     pauseAudio,
     resumeAudio,
+    settings,
+    updateSettings,
     showToast
   } = useQuran();
 
   const [selectedScholar, setSelectedScholar] = useState<TafsirScholar>('saadi');
+  const [selectedReciterId, setSelectedReciterId] = useState<string>(settings.selectedReciterId || 'abdul_basit_mujawwad');
   const [repeatCount, setRepeatCount] = useState<number>(1);
   const [copied, setCopied] = useState<boolean>(false);
+  const [tafsirText, setTafsirText] = useState<string>('');
+  const [loadingTafsir, setLoadingTafsir] = useState<boolean>(false);
+
+  // Sync reciter with app settings initially
+  useEffect(() => {
+    if (settings.selectedReciterId) {
+      setSelectedReciterId(settings.selectedReciterId);
+    }
+  }, [settings.selectedReciterId]);
+
+  // Load and fetch live Tafsir
+  useEffect(() => {
+    if (!selectedAyahDetail) return;
+    const { surahNum, ayah } = selectedAyahDetail;
+    
+    // Initial fast fallback / cache
+    const cached = getTafsirForAyah(surahNum, ayah.numberInSurah, selectedScholar);
+    setTafsirText(cached);
+
+    // Fetch live authentic scholarly commentary asynchronously
+    let isCancelled = false;
+    setLoadingTafsir(true);
+    fetchLiveTafsirForAyah(surahNum, ayah.numberInSurah, selectedScholar)
+      .then(result => {
+        if (!isCancelled && result) {
+          setTafsirText(result);
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) setLoadingTafsir(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedAyahDetail, selectedScholar]);
 
   if (!selectedAyahDetail) return null;
 
@@ -44,8 +85,8 @@ export const AyahDetailModal: React.FC = () => {
     audioState.surahNumber === surahNum &&
     audioState.ayahNumber === ayah.numberInSurah;
 
-  const tafsirContent = getTafsirForAyah(surahNum, ayah.numberInSurah, selectedScholar);
   const currentScholarInfo = TAFSIR_SCHOLARS.find(s => s.id === selectedScholar) || TAFSIR_SCHOLARS[0];
+  const currentReciter = RECITERS_LIST.find(r => r.id === selectedReciterId) || audioState.reciter;
   const bookmarked = isBookmarked(surahNum, ayah.numberInSurah);
 
   const handleToggleBookmark = () => {
@@ -65,8 +106,16 @@ export const AyahDetailModal: React.FC = () => {
     }
   };
 
+  const handlePlayOrPause = () => {
+    if (isPlayingThisAyah) {
+      pauseAudio();
+    } else {
+      playAyahAudio(surahNum, ayah.numberInSurah, selectedReciterId);
+    }
+  };
+
   const handleCopyAyah = () => {
-    const textToCopy = `﴿${ayah.text}﴾\n[سورة ${surahMeta.name}: آية ${ayah.numberInSurah}]\n\nالتفسير (${currentScholarInfo.name}):\n${tafsirContent}\n\n- عبر تطبيق أنوار الوحي للقرآن الكريم`;
+    const textToCopy = `﴿${ayah.text}﴾\n[سورة ${surahMeta.name}: آية ${ayah.numberInSurah}]\n\nالتفسير (${currentScholarInfo.name}):\n${tafsirText}\n\n- عبر تطبيق أنوار الوحي للقرآن الكريم`;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     showToast('تم نسخ الآية مع التفسير إلى الحافظة 📋');
@@ -89,7 +138,7 @@ export const AyahDetailModal: React.FC = () => {
             </div>
             <div>
               <h3 className="font-bold text-base sm:text-lg text-amber-200">
-                تفسير وتدبر الآية ({ayah.numberInSurah})
+                تفسير وتلاوة الآية ({ayah.numberInSurah})
               </h3>
               <p className="text-xs text-amber-200/70">
                 سورة {surahMeta.name} • الجزء {ayah.juz} • صفحة {ayah.page}
@@ -120,74 +169,102 @@ export const AyahDetailModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Action Toolbar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-emerald-900/30 p-2.5 rounded-2xl border border-slate-200 dark:border-emerald-800">
-            {/* Audio Play for verse */}
-            <button
-              onClick={() => {
-                if (isPlayingThisAyah) {
-                  pauseAudio();
-                } else {
-                  playAyahAudio(surahNum, ayah.numberInSurah);
-                }
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-bold text-xs shadow-sm gold-glow transition-all"
-            >
-              {isPlayingThisAyah ? (
-                <>
-                  <Pause className="w-3.5 h-3.5 fill-emerald-950" />
-                  <span>إيقاف التلاوة</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-emerald-950" />
-                  <span>استماع للآية</span>
-                </>
-              )}
-            </button>
+          {/* Reciter & Audio Controls Bar */}
+          <div className="bg-slate-50 dark:bg-emerald-900/30 p-3 rounded-2xl border border-slate-200 dark:border-emerald-800 space-y-2.5">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+              {/* Reciter Selector */}
+              <div className="flex items-center gap-2 flex-1">
+                <User className="w-4 h-4 text-amber-500 shrink-0" />
+                <div className="flex-1">
+                  <select
+                    value={selectedReciterId}
+                    onChange={e => {
+                      const newReciterId = e.target.value;
+                      setSelectedReciterId(newReciterId);
+                      updateSettings({ selectedReciterId: newReciterId });
+                      const rObj = RECITERS_LIST.find(r => r.id === newReciterId);
+                      showToast(`تم اختيار القارئ: ${rObj?.name}`);
+                      if (isPlayingThisAyah) {
+                        playAyahAudio(surahNum, ayah.numberInSurah, newReciterId);
+                      }
+                    }}
+                    className="w-full py-1.5 px-2.5 rounded-xl bg-white dark:bg-emerald-950 border border-slate-200 dark:border-emerald-800 text-slate-800 dark:text-amber-100 text-xs font-bold focus:outline-none focus:border-amber-500"
+                  >
+                    {RECITERS_LIST.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} ({r.style})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-            {/* Bookmark */}
-            <button
-              onClick={handleToggleBookmark}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                bookmarked
-                  ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-400'
-                  : 'bg-white dark:bg-emerald-950 text-slate-700 dark:text-amber-200 border-slate-200 dark:border-emerald-800 hover:border-amber-400'
-              }`}
-            >
-              <Bookmark className={`w-3.5 h-3.5 ${bookmarked ? 'fill-current' : ''}`} />
-              <span>{bookmarked ? 'محفوظة' : 'حفظ'}</span>
-            </button>
+              {/* Play Audio Button */}
+              <button
+                onClick={handlePlayOrPause}
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 font-bold text-xs shadow-md gold-glow transition-all active:scale-95"
+              >
+                {isPlayingThisAyah ? (
+                  <>
+                    <Pause className="w-4 h-4 fill-emerald-950" />
+                    <span>إيقاف التلاوة</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 fill-emerald-950" />
+                    <span>استماع للآية</span>
+                  </>
+                )}
+              </button>
+            </div>
 
-            {/* Copy */}
-            <button
-              onClick={handleCopyAyah}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-emerald-950 border border-slate-200 dark:border-emerald-800 text-slate-700 dark:text-amber-200 hover:border-amber-400 text-xs font-semibold transition-all"
-            >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'تم النسخ' : 'نسخ مع التفسير'}</span>
-            </button>
-
-            {/* Repeat memorization */}
-            <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-amber-200/70">
-              <Repeat className="w-3.5 h-3.5" />
-              <span>تكرار:</span>
-              {[1, 3, 5, 10].map(cnt => (
+            {/* Sub toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-emerald-800/60">
+              <div className="flex items-center gap-2">
+                {/* Bookmark */}
                 <button
-                  key={cnt}
-                  onClick={() => {
-                    setRepeatCount(cnt);
-                    showToast(`تم ضبط تكرار الآية للتحفيظ: ${cnt} مرات`);
-                  }}
-                  className={`w-6 h-6 rounded-md font-bold text-[11px] border transition-all ${
-                    repeatCount === cnt
-                      ? 'bg-amber-500 text-emerald-950 border-amber-400'
-                      : 'bg-white dark:bg-emerald-950 border-slate-200 dark:border-emerald-800'
+                  onClick={handleToggleBookmark}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                    bookmarked
+                      ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-400 font-bold'
+                      : 'bg-white dark:bg-emerald-950 text-slate-700 dark:text-amber-200 border-slate-200 dark:border-emerald-800 hover:border-amber-400'
                   }`}
                 >
-                  {cnt}
+                  <Bookmark className={`w-3.5 h-3.5 ${bookmarked ? 'fill-current' : ''}`} />
+                  <span>{bookmarked ? 'محفوظة ✓' : 'حفظ'}</span>
                 </button>
-              ))}
+
+                {/* Copy */}
+                <button
+                  onClick={handleCopyAyah}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-emerald-950 border border-slate-200 dark:border-emerald-800 text-slate-700 dark:text-amber-200 hover:border-amber-400 text-xs font-semibold transition-all"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copied ? 'تم النسخ' : 'نسخ الآية والتفسير'}</span>
+                </button>
+              </div>
+
+              {/* Repeat memorization */}
+              <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-amber-200/70">
+                <Repeat className="w-3.5 h-3.5" />
+                <span>تكرار:</span>
+                {[1, 3, 5, 10].map(cnt => (
+                  <button
+                    key={cnt}
+                    onClick={() => {
+                      setRepeatCount(cnt);
+                      showToast(`تم ضبط تكرار الآية للتحفيظ: ${cnt} مرات`);
+                    }}
+                    className={`w-6 h-6 rounded-md font-bold text-[11px] border transition-all ${
+                      repeatCount === cnt
+                        ? 'bg-amber-500 text-emerald-950 border-amber-400'
+                        : 'bg-white dark:bg-emerald-950 border-slate-200 dark:border-emerald-800'
+                    }`}
+                  >
+                    {cnt}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -197,9 +274,12 @@ export const AyahDetailModal: React.FC = () => {
               <label className="text-xs font-bold text-slate-700 dark:text-amber-200">
                 اختر كتاب التفسير المعتمد:
               </label>
-              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                {currentScholarInfo.era}
-              </span>
+              <div className="flex items-center gap-2">
+                {loadingTafsir && <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin" />}
+                <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                  {currentScholarInfo.era}
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
@@ -225,7 +305,7 @@ export const AyahDetailModal: React.FC = () => {
                 <span>{currentScholarInfo.bookTitle}</span>
               </div>
               <p className="text-sm sm:text-base text-slate-700 dark:text-amber-100 leading-relaxed text-justify">
-                {tafsirContent}
+                {tafsirText}
               </p>
             </div>
           </div>

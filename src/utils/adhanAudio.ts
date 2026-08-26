@@ -3,38 +3,37 @@ export interface MuadhinOption {
   name: string;
   location: string;
   audioUrl: string;
+  fallbackUrls?: string[];
 }
 
 export const MUADHINS_LIST: MuadhinOption[] = [
   {
     id: 'makkah',
     name: 'أذان المسجد الحرام (مكة المكرمة)',
-    location: 'مكة المكرمة - الشيخ علي أحمد ملا',
-    audioUrl: 'https://cdn.aladhan.com/audio/adhans/makkah.mp3'
+    location: 'مكة المكرمة - صوت ندي خاشع',
+    audioUrl: '/adhan-makkah.mp3',
+    fallbackUrls: ['https://islamcan.com/audio/adhan/azan1.mp3', 'https://cdn.aladhan.com/audio/adhans/a1.mp3']
   },
   {
     id: 'madinah',
     name: 'أذان المسجد النبوي الشريف',
-    location: 'المدينة المنورة - الشيخ عصام بخاري',
-    audioUrl: 'https://cdn.aladhan.com/audio/adhans/madina.mp3'
-  },
-  {
-    id: 'alaqsa',
-    name: 'أذان المسجد الأقصى المبارك',
-    location: 'القدس الشريف',
-    audioUrl: 'https://cdn.aladhan.com/audio/adhans/alaqsa.mp3'
-  },
-  {
-    id: 'egypt',
-    name: 'أذان جمهورية مصر العربية',
-    location: 'القاهرة - مسجد الحسين',
-    audioUrl: 'https://cdn.aladhan.com/audio/adhans/egypt.mp3'
+    location: 'المدينة المنورة - صوت شجي مبارك',
+    audioUrl: '/adhan-madinah.mp3',
+    fallbackUrls: ['https://islamcan.com/audio/adhan/azan2.mp3', 'https://cdn.aladhan.com/audio/adhans/a2.mp3']
   },
   {
     id: 'abdul_basit',
     name: 'أذان بصوت الشيخ عبد الباسط عبد الصمد',
-    location: 'تسجيل تاريخي نادر',
-    audioUrl: 'https://cdn.aladhan.com/audio/adhans/abdulbasit.mp3'
+    location: 'تسجيل تاريخي نادر بصوت الشيخ عبد الباسط',
+    audioUrl: '/adhan-abdulbasit.mp3',
+    fallbackUrls: ['https://islamcan.com/audio/adhan/azan3.mp3', 'https://cdn.aladhan.com/audio/adhans/a3.mp3']
+  },
+  {
+    id: 'egypt',
+    name: 'أذان جمهورية مصر العربية',
+    location: 'القاهرة - مسجد الإمام الحسين',
+    audioUrl: '/adhan-egypt.mp3',
+    fallbackUrls: ['https://islamcan.com/audio/adhan/azan4.mp3', 'https://cdn.aladhan.com/audio/adhans/a1.mp3']
   }
 ];
 

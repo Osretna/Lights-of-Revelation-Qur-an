@@ -76,24 +76,49 @@ export const PrayerTimesSection: React.FC = () => {
   const handlePlayAdhan = () => {
     if (isPlayingAdhan && adhanAudioElement) {
       adhanAudioElement.pause();
+      adhanAudioElement.currentTime = 0;
       setIsPlayingAdhan(false);
+      setAdhanAudioElement(null);
       return;
     }
 
     const muadhin = MUADHINS_LIST.find(m => m.id === selectedMuadhin) || MUADHINS_LIST[0];
-    const audio = new Audio(muadhin.audioUrl);
-    setAdhanAudioElement(audio);
-    setIsPlayingAdhan(true);
-    showToast(`جاري تشغيل: ${muadhin.name} 🕌`);
+    const candidateUrls = [muadhin.audioUrl, ...(muadhin.fallbackUrls || [])];
+    
+    let currentIndex = 0;
+    const playNextCandidate = () => {
+      if (currentIndex >= candidateUrls.length) {
+        showToast('تعذر تشغيل ملف الأذان الصوتي');
+        setIsPlayingAdhan(false);
+        setAdhanAudioElement(null);
+        return;
+      }
+      const url = candidateUrls[currentIndex];
+      const audio = new Audio(url);
+      setAdhanAudioElement(audio);
 
-    audio.play().catch(() => {
-      // Fallback serene Islamic synthesizer tone if offline/blocked
-      playIslamicTone();
-    });
+      audio.onplay = () => {
+        setIsPlayingAdhan(true);
+      };
 
-    audio.onended = () => {
-      setIsPlayingAdhan(false);
+      audio.onended = () => {
+        setIsPlayingAdhan(false);
+        setAdhanAudioElement(null);
+      };
+
+      audio.onerror = () => {
+        currentIndex++;
+        playNextCandidate();
+      };
+
+      audio.play().catch(() => {
+        currentIndex++;
+        playNextCandidate();
+      });
     };
+
+    showToast(`جاري تشغيل: ${muadhin.name} 🕌`);
+    playNextCandidate();
   };
 
   const prayers = [
