@@ -88,7 +88,14 @@ interface QuranContextType {
   userStats: UserStats;
   recordPageRead: (pageNum: number) => void;
   incrementTasbeehCount: () => void;
+  recordCorrectionAttempt: (isSuccess: boolean) => void;
   resetAllCounters: () => void;
+
+  // Offline Downloads
+  downloadedReciters: Record<string, number>;
+  addDownloadedReciter: (reciterId: string, sizeMB?: number) => void;
+  removeDownloadedReciter: (reciterId: string) => void;
+  clearAllDownloads: () => void;
 
   // Audio Player
   audioState: AudioState;
@@ -305,10 +312,72 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const incrementTasbeehCount = () => {
     setUserStats(prev => {
-      const updated = { ...prev, tasbeehTotalCount: prev.tasbeehTotalCount + 1 };
+      const updated = { ...prev, tasbeehTotalCount: (prev.tasbeehTotalCount || 0) + 1 };
       saveStats(updated);
       return updated;
     });
+  };
+
+  const recordCorrectionAttempt = (isSuccess: boolean) => {
+    setUserStats(prev => {
+      const updated: UserStats = {
+        ...prev,
+        correctionAttempts: (prev.correctionAttempts || 0) + 1,
+        correctionSuccessCount: (prev.correctionSuccessCount || 0) + (isSuccess ? 1 : 0)
+      };
+      saveStats(updated);
+      return updated;
+    });
+  };
+
+  // Offline Downloads State
+  const [downloadedReciters, setDownloadedReciters] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('anwar_downloaded_reciters');
+      return saved ? JSON.parse(saved) : {
+        'ar.alafasy': 420,
+        'ar.abdulbasitmurattal': 380
+      };
+    } catch {
+      return {
+        'ar.alafasy': 420,
+        'ar.abdulbasitmurattal': 380
+      };
+    }
+  });
+
+  const addDownloadedReciter = (reciterId: string, sizeMB: number = 450) => {
+    setDownloadedReciters(prev => {
+      const updated = { ...prev, [reciterId]: sizeMB };
+      try {
+        localStorage.setItem('anwar_downloaded_reciters', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+  };
+
+  const removeDownloadedReciter = (reciterId: string) => {
+    setDownloadedReciters(prev => {
+      const updated = { ...prev };
+      delete updated[reciterId];
+      try {
+        localStorage.setItem('anwar_downloaded_reciters', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+  };
+
+  const clearAllDownloads = () => {
+    setDownloadedReciters({});
+    try {
+      localStorage.removeItem('anwar_downloaded_reciters');
+    } catch {
+      // ignore
+    }
   };
 
   const resetAllCounters = () => {
@@ -597,8 +666,6 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentTime: audio.currentTime,
         duration: audio.duration || 0
       }));
-      // Record listening stats
-      setUserStats(s => ({ ...s, listeningSeconds: s.listeningSeconds + 1 }));
     };
 
     const handleLoadedMetadata = () => {
@@ -648,6 +715,30 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       audio.removeEventListener('ended', handleEnded);
     };
   }, []);
+
+  // Accurate real-time listening seconds tracker
+  useEffect(() => {
+    let interval: any = null;
+    if (audioState.isPlaying) {
+      interval = setInterval(() => {
+        setUserStats(prev => {
+          const updated: UserStats = {
+            ...prev,
+            listeningSeconds: (prev.listeningSeconds || 0) + 1
+          };
+          try {
+            localStorage.setItem('anwar_user_stats', JSON.stringify(updated));
+          } catch {
+            // ignore
+          }
+          return updated;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [audioState.isPlaying]);
 
   const playSurahAudio = (surahNum: number, reciterId?: string) => {
     setSelectedSurahNum(surahNum);
@@ -1060,6 +1151,11 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         userStats,
         recordPageRead,
         incrementTasbeehCount,
+        recordCorrectionAttempt,
+        downloadedReciters,
+        addDownloadedReciter,
+        removeDownloadedReciter,
+        clearAllDownloads,
         resetAllCounters,
         audioState,
         playSurahAudio,

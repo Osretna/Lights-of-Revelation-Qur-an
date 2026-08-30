@@ -172,5 +172,7 @@ export interface UserStats {
   tasbeehTotalCount: number;
   correctionAttempts: number;
   correctionSuccessCount: number;
+  totalAyahsRead?: number;
+  sessionStartTime?: number;
 }
 

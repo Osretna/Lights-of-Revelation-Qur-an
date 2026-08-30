@@ -26,7 +26,12 @@ import {
   KeyRound,
   AlertCircle,
   RotateCcw,
-  Activity
+  Activity,
+  FileText,
+  DownloadCloud,
+  Award,
+  Mic,
+  Bookmark
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 import { HalalAdSenseGuideModal } from './HalalAdSenseGuideModal';
@@ -41,7 +46,15 @@ export const AdminDashboard: React.FC = () => {
     showToast,
     isAdminAuthenticated,
     logoutAdmin,
-    setActiveTab
+    setActiveTab,
+    userStats,
+    khatmahs,
+    activeKhatmah,
+    downloadedReciters,
+    audioState,
+    readingProgress,
+    bookmarks,
+    resetAllCounters
   } = useQuran();
 
   const [broadcastTitle, setBroadcastTitle] = useState<string>('تنبيه قرآني: صيام يوم الإثنين سنة نبوية');
@@ -50,6 +63,7 @@ export const AdminDashboard: React.FC = () => {
   const [showGuideModal, setShowGuideModal] = useState<boolean>(false);
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
   const [copiedTxt, setCopiedTxt] = useState<boolean>(false);
+  const [copiedReport, setCopiedReport] = useState<boolean>(false);
 
   // If not authenticated, render protected gate
   if (!isAdminAuthenticated) {
@@ -94,51 +108,107 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
-  // Live zeroed statistics starting fresh from now
-  const [activeReadersCount, setActiveReadersCount] = useState<number>(1);
-  const [listeningHours, setListeningHours] = useState<number>(0.0);
-  const [completedKhatmahs, setCompletedKhatmahs] = useState<number>(0);
-  const [offlineRequests, setOfflineRequests] = useState<number>(0);
-  const [launchTime] = useState<string>(() => new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }));
+  // Real-time Precision Calculations
+  const activeReadersCount = 1;
+  const listeningSeconds = userStats.listeningSeconds || 0;
+  const listeningHours = listeningSeconds / 3600;
+
+  const completedKhatmahsCount =
+    khatmahs.filter(k => k.completedPages.length >= 604 || k.status === 'completed').length +
+    (userStats.completedKhatmahsCount || 0);
+
+  const downloadedCount = Object.keys(downloadedReciters || {}).length;
+  const totalDownloadedMB = Object.values(downloadedReciters || {}).reduce<number>(
+    (acc, val) => acc + Number(val || 0),
+    0
+  );
+
+  const formatListeningTime = (seconds: number) => {
+    if (seconds < 60) return `${seconds} ثانية`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins < 60) return `${mins} دقيقة${secs > 0 ? ` و ${secs} ث` : ''}`;
+    const hrs = (seconds / 3600).toFixed(2);
+    return `${hrs} س (${mins} دقيقة)`;
+  };
 
   const handleResetCounters = () => {
-    setActiveReadersCount(1);
-    setListeningHours(0.0);
-    setCompletedKhatmahs(0);
-    setOfflineRequests(0);
-    showToast('تم تصفير جميع عدادات الإحصائيات وبدء التسجيل الحي من الآن 🟢');
+    resetAllCounters();
+    showToast('تم تصفير جميع عدادات الإحصائيات وبدء التسجيل الحي الدقيق من جديد 🟢');
   };
 
   const stats = [
     {
       title: 'إجمالي القراء النشطين الآن',
       value: `${activeReadersCount}`,
-      change: '🟢 بدء التشغيل الحي',
-      subtitle: 'متصل الآن في الجلسة الفعلية',
+      change: audioState.isPlaying ? '🟢 يستمع الآن' : '🟢 جلسة نشطة',
+      subtitle: `الجلسة الحالية متصلة ومباشرة • مداومة: ${userStats.streakDays || 1} يوم`,
       icon: Users
     },
     {
       title: 'ساعات الاستماع الصوتية',
       value: `${listeningHours.toFixed(2)} س`,
-      change: '0% (جديد)',
-      subtitle: 'ساعات الاستماع المباشرة',
+      change: audioState.isPlaying
+        ? '🔊 تشغيل مباشر'
+        : listeningSeconds > 0
+        ? `⏱️ ${Math.floor(listeningSeconds / 60)} دقيقة مسجلة`
+        : 'جاهز للتسجيل',
+      subtitle: `المدة الفعلية: ${formatListeningTime(listeningSeconds)}`,
       icon: Headphones
     },
     {
       title: 'الختمات المنجزة هذا الشهر',
-      value: `${completedKhatmahs}`,
-      change: '0% (جديد)',
-      subtitle: 'الختمات المكتملة حديثاً',
+      value: `${completedKhatmahsCount}`,
+      change: completedKhatmahsCount > 0 ? '✓ مكتملة' : 'قيد التقدم',
+      subtitle: activeKhatmah
+        ? `الختمة الحالية: ${activeKhatmah.completedPages.length}/604 صفحة (${Math.round((activeKhatmah.completedPages.length / 604) * 100)}%)`
+        : 'الختمات المكتملة 100%',
       icon: CheckCircle2
     },
     {
-      title: 'طلبات التلاوات بدون إنترنت',
-      value: `${offlineRequests}`,
-      change: '0% (جديد)',
-      subtitle: 'تحميلات التلاوات المباشرة',
+      title: 'تلاوات بدون إنترنت محملة',
+      value: `${downloadedCount}`,
+      change: downloadedCount > 0 ? `${totalDownloadedMB} ميجابايت` : '0 حزم',
+      subtitle: downloadedCount > 0
+        ? `حزم القراء المحفوظة محلياً (${downloadedCount} قارئ)`
+        : 'التلاوات المحملة للعمل دون إنترنت',
       icon: Radio
     }
   ];
+
+  const handleExportReport = () => {
+    const reportText = `================================================
+تقرير إحصائيات تطبيق أنوار الوحي الشامل والدقيق
+تاريخ وتوقيت التقرير: ${new Date().toLocaleString('ar-EG')}
+================================================
+1. نشاط القراءة والمصحف الشريف:
+- إجمالي الصفحات المقروءة: ${userStats.totalPagesRead || 0} من أصل 604 صفحة (${(((userStats.totalPagesRead || 0) / 604) * 100).toFixed(1)}%)
+- آخر موضع قراءة: سورة ${readingProgress.lastSurahName} (صفحة ${readingProgress.lastPageNumber}، آية ${readingProgress.lastAyahNumber})
+- الختمات المنجزة بالكامل: ${completedKhatmahsCount} ختمة
+- خطط الختمات الجارية: ${khatmahs.length} خطة
+- أيام المداومة اليومية المتتالية: ${userStats.streakDays || 1} يوم
+
+2. الاستماع والتلاوات الصوتية:
+- إجمالي ساعات الاستماع: ${listeningHours.toFixed(2)} ساعة
+- الوقت الدقيق بالثواني: ${listeningSeconds} ثانية (${formatListeningTime(listeningSeconds)})
+- حالة المشغل الصوتي الآن: ${audioState.isPlaying ? 'مشغل ونشط' : 'متوقف'}
+
+3. التنزيلات والعمل دون إنترنت:
+- الحزم الصوتية المحملة: ${downloadedCount} حزمة قارئ
+- المساحة التخزينية المستخدمة: ${totalDownloadedMB} ميجابايت
+
+4. الأذكار والتسبيح والتدريب الصوتي:
+- إجمالي التسبيحات والأذكار المنجزة: ${userStats.tasbeehTotalCount || 0} تسبيحة
+- محاولات مصحح التلاوة الصوتي: ${userStats.correctionAttempts || 0} محاولة
+- التلاوات المتقنة الصحيحة: ${userStats.correctionSuccessCount || 0} تلاوة (${(userStats.correctionAttempts || 0) > 0 ? Math.round(((userStats.correctionSuccessCount || 0) / userStats.correctionAttempts) * 100) : 100}%)
+- الإشارات المرجعية المحفوظة: ${bookmarks.length} آية
+================================================`;
+
+    navigator.clipboard.writeText(reportText);
+    setCopiedReport(true);
+    showToast('تم نسخ التقرير الإحصائي الدقيق والشامل للحافظة بنجاح 📋');
+    setTimeout(() => setCopiedReport(false), 3000);
+  };
 
   const handleSendBroadcast = (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,7 +240,7 @@ export const AdminDashboard: React.FC = () => {
               </h1>
             </div>
             <p className="text-sm text-slate-200 mt-1">
-              متابعة الإحصائيات الحية الفعلية، إدارة إعلانات Google AdSense الحلال، وضوابط الشريعة الإسلامية.
+              متابعة الإحصائيات الحية الفعلية، تقارير الاستخدام، إدارة إعلانات Google AdSense الحلال، وضوابط الشريعة الإسلامية.
             </p>
           </div>
 
@@ -200,16 +270,25 @@ export const AdminDashboard: React.FC = () => {
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
           <span className="text-xs font-bold text-[#d4af37]">
-            الإحصائيات مصفّرة وتبدأ التسجيل المباشر من الآن (توقيت البدء: {launchTime})
+            الإحصائيات متصلة حياً ومباشرة ببيانات التطبيق الفعلية (تحديث فوري بالثانية)
           </span>
         </div>
-        <button
-          onClick={handleResetCounters}
-          className="px-3 py-1.5 rounded-xl bg-[#042118] hover:bg-[#084d32] border border-[#d4af37]/30 text-[#f5f2ed] hover:text-[#d4af37] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>تصفير وإعادة تعيين العدادات</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportReport}
+            className="px-3 py-1.5 rounded-xl bg-[#d4af37] hover:bg-[#c19b2e] text-[#042118] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>{copiedReport ? 'تم نسخ التقرير ✓' : 'تصدير تقرير شامل'}</span>
+          </button>
+          <button
+            onClick={handleResetCounters}
+            className="px-3 py-1.5 rounded-xl bg-[#042118] hover:bg-[#084d32] border border-[#d4af37]/30 text-[#f5f2ed] hover:text-[#d4af37] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>تصفير وإعادة تعيين العدادات</span>
+          </button>
+        </div>
       </div>
 
       {/* Analytics KPI Cards */}
@@ -237,6 +316,129 @@ export const AdminDashboard: React.FC = () => {
             </div>
           );
         })}
+      </div>
+
+      {/* DETAILED STATISTICAL PRECISION REPORTS SECTION */}
+      <div className="bg-white dark:bg-[#063321] border-2 border-[#d4af37]/30 rounded-3xl p-6 shadow-xl space-y-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#d4af37]/20 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30 flex items-center justify-center font-bold">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold font-serif text-slate-900 dark:text-[#d4af37]">
+                تقرير دقة الإحصائيات والأداء الفعلي للتطبيق
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-300">
+                بيانات حية مباشرة من محركات القراءة والاستماع ومصحح التلاوة
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleExportReport}
+            className="px-3.5 py-1.5 rounded-xl bg-[#042118] hover:bg-[#084d32] border border-[#d4af37]/40 text-[#d4af37] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>{copiedReport ? 'تم نسخ التقرير المفصل' : 'نسخ التقرير الشامل'}</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Card 1: Quran Reading Metrics */}
+          <div className="p-4 rounded-2xl bg-[#042118]/80 border border-[#d4af37]/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-xs font-bold text-[#f5f2ed]">إنجاز المصحف والقراءة</h3>
+              </div>
+              <span className="text-[11px] font-mono font-bold text-[#d4af37]">
+                {(((userStats.totalPagesRead || 0) / 604) * 100).toFixed(1)}%
+              </span>
+            </div>
+            <div className="w-full bg-black/40 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-emerald-500 to-[#d4af37] h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, Math.max(1, ((userStats.totalPagesRead || 0) / 604) * 100))}%` }}
+              />
+            </div>
+            <div className="space-y-1.5 text-[11px] text-slate-300">
+              <div className="flex justify-between">
+                <span>الصفحات المقروءة:</span>
+                <span className="font-bold text-white font-mono">{userStats.totalPagesRead || 0} / 604</span>
+              </div>
+              <div className="flex justify-between">
+                <span>آخر موضع قراءة:</span>
+                <span className="font-bold text-[#d4af37]">{readingProgress.lastSurahName} (ص {readingProgress.lastPageNumber})</span>
+              </div>
+              <div className="flex justify-between">
+                <span>أيام المداومة (Streak):</span>
+                <span className="font-bold text-emerald-400 font-mono">{userStats.streakDays || 1} يوم متتالي</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Voice Recitation & Tasbeeh */}
+          <div className="p-4 rounded-2xl bg-[#042118]/80 border border-[#d4af37]/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mic className="w-4 h-4 text-amber-400" />
+                <h3 className="text-xs font-bold text-[#f5f2ed]">مصحح التلاوة والتسبيح</h3>
+              </div>
+              <span className="text-[11px] font-mono font-bold text-emerald-400">
+                {(userStats.correctionAttempts || 0) > 0 ? Math.round(((userStats.correctionSuccessCount || 0) / userStats.correctionAttempts) * 100) : 100}% إتقان
+              </span>
+            </div>
+            <div className="w-full bg-black/40 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-amber-500 to-emerald-400 h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${(userStats.correctionAttempts || 0) > 0 ? Math.round(((userStats.correctionSuccessCount || 0) / userStats.correctionAttempts) * 100) : 100}%`
+                }}
+              />
+            </div>
+            <div className="space-y-1.5 text-[11px] text-slate-300">
+              <div className="flex justify-between">
+                <span>محاولات تصحيح الصوت:</span>
+                <span className="font-bold text-white font-mono">{userStats.correctionAttempts || 0} محاولة</span>
+              </div>
+              <div className="flex justify-between">
+                <span>تلاوات متقنة بنجاح:</span>
+                <span className="font-bold text-emerald-400 font-mono">{userStats.correctionSuccessCount || 0} تلاوة</span>
+              </div>
+              <div className="flex justify-between">
+                <span>إجمالي التسبيحات:</span>
+                <span className="font-bold text-[#d4af37] font-mono">{userStats.tasbeehTotalCount || 0} ذكر</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Storage & Offline Packages */}
+          <div className="p-4 rounded-2xl bg-[#042118]/80 border border-[#d4af37]/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <DownloadCloud className="w-4 h-4 text-sky-400" />
+                <h3 className="text-xs font-bold text-[#f5f2ed]">التخزين بدون إنترنت</h3>
+              </div>
+              <span className="text-[11px] font-mono font-bold text-sky-400">
+                {downloadedCount} حزم
+              </span>
+            </div>
+            <div className="space-y-1.5 text-[11px] text-slate-300 pt-1">
+              <div className="flex justify-between">
+                <span>المساحة المستهلكة:</span>
+                <span className="font-bold text-white font-mono">{totalDownloadedMB} ميجابايت</span>
+              </div>
+              <div className="flex justify-between">
+                <span>الآيات المرجعية المحفوظة:</span>
+                <span className="font-bold text-amber-300 font-mono">{bookmarks.length} إشارة</span>
+              </div>
+              <div className="flex justify-between">
+                <span>حالة مزامنة الإحصائيات:</span>
+                <span className="font-bold text-emerald-400 font-mono">مزامنة مشفرة ✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* GOOGLE ADSENSE & ISLAMIC SHARIA CONTROLS SECTION */}

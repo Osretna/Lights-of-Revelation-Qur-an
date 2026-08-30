@@ -21,7 +21,7 @@ import { ZikrItem } from '../types/quran';
 import { GoogleAdBanner } from './GoogleAdBanner';
 
 export const AzkarSection: React.FC = () => {
-  const { showToast } = useQuran();
+  const { showToast, incrementTasbeehCount } = useQuran();
 
   const [activeCategory, setActiveCategory] = useState<string>('sabah');
   const [activeTab, setActiveTab] = useState<'azkar' | 'tasbeeh'>('azkar');
@@ -52,6 +52,7 @@ export const AzkarSection: React.FC = () => {
     if (current < item.repeatTarget) {
       const next = current + 1;
       setZikrCounts(prev => ({ ...prev, [item.id]: next }));
+      incrementTasbeehCount();
       if (next === item.repeatTarget) {
         showToast('تقبل الله منك! تم إكمال هذا الذكر المبارك ✓');
       }
@@ -66,6 +67,7 @@ export const AzkarSection: React.FC = () => {
   const handleTasbeehClick = () => {
     setTasbeehCount(prev => prev + 1);
     setTotalTasbeehSession(prev => prev + 1);
+    incrementTasbeehCount();
     if ((tasbeehCount + 1) % selectedPreset.target === 0) {
       showToast(`أحسنت! أتممت ${selectedPreset.target} تسبيحة 🌟`);
     }

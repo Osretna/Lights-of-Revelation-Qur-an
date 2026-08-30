@@ -85,7 +85,7 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
   initialAyahNum = 1,
   onClose
 }) => {
-  const { showToast, audioState, playAyahAudio, pauseAudio } = useQuran();
+  const { showToast, audioState, playAyahAudio, pauseAudio, recordCorrectionAttempt } = useQuran();
 
   const [surahNum, setSurahNum] = useState<number>(initialSurahNum);
   const [ayahNum, setAyahNum] = useState<number>(initialAyahNum);
@@ -284,6 +284,7 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
         setHasError(false);
         setErrorDetails(null);
         stopListening();
+        recordCorrectionAttempt(true);
         showToast('ما شاء الله! تلاوة صحيحة ومباركة 🌟');
       }
     }
@@ -298,6 +299,7 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
     setTranscript('');
     setInterimText('');
     setWordsStatus(new Array(targetWords.length).fill('pending'));
+    recordCorrectionAttempt(false);
 
     if (recognitionRef.current) {
       try {

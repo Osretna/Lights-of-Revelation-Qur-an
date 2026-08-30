@@ -14,17 +14,19 @@ import { useQuran } from '../context/QuranContext';
 import { RECITERS_LIST } from '../data/recitersData';
 
 export const DownloadsManager: React.FC = () => {
-  const { showToast } = useQuran();
+  const {
+    showToast,
+    downloadedReciters,
+    addDownloadedReciter,
+    removeDownloadedReciter,
+    clearAllDownloads
+  } = useQuran();
 
   const [downloadingReciter, setDownloadingReciter] = useState<string | null>(null);
-  const [downloadedReciters, setDownloadedReciters] = useState<Record<string, number>>({
-    'ar.alafasy': 420,
-    'ar.abdulbasitmurattal': 380
-  });
 
   const totalUsedMB: number = Object.values(downloadedReciters).reduce<number>(
     (acc, val) => acc + Number(val || 0),
-    15
+    0
   );
 
   const handleDownloadFullReciter = (reciterId: string, name: string) => {
@@ -32,21 +34,19 @@ export const DownloadsManager: React.FC = () => {
     showToast(`جاري تنزيل تلاوات ${name} للاستماع دون اتصال بالإنترنت... 📥`);
     
     setTimeout(() => {
-      setDownloadedReciters(prev => ({ ...prev, [reciterId]: 450 }));
+      addDownloadedReciter(reciterId, 450);
       setDownloadingReciter(null);
       showToast(`اكتمل تنزيل تلاوات ${name} بنجاح! جاهز بدون إنترنت ✓`);
-    }, 2000);
+    }, 1500);
   };
 
   const handleRemoveReciterDownload = (reciterId: string, name: string) => {
-    const next = { ...downloadedReciters };
-    delete next[reciterId];
-    setDownloadedReciters(next);
+    removeDownloadedReciter(reciterId);
     showToast(`تم حذف التلاوات المحملة لـ ${name} لتوفير المساحة`);
   };
 
   const handleClearAllStorage = () => {
-    setDownloadedReciters({});
+    clearAllDownloads();
     showToast('تم تنظيف الذاكرة المؤقتة بنجاح');
   };
 
