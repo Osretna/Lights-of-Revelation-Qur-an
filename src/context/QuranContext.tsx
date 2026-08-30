@@ -152,7 +152,16 @@ const DEFAULT_SETTINGS: AppSettings = {
   lat: 21.4225,
   lng: 39.8262,
   autoDetectLocation: false,
-  showSponsorship: true
+  showSponsorship: true,
+  // Google AdSense & Halal Ads Defaults
+  adSenseEnabled: true,
+  adSensePublisherId: '',
+  adSenseBannerSlot: '',
+  adSenseInFeedSlot: '',
+  adSenseNativeSlot: '',
+  adSenseTestMode: true,
+  halalAdFilterActive: true,
+  showIslamicFallbackWhenNoAds: true
 };
 
 const DEFAULT_USER_STATS: UserStats = {

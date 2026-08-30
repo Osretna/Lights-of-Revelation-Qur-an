@@ -24,6 +24,7 @@ import { SURAH_LIST } from '../data/surahList';
 import { RECITERS_LIST } from '../data/recitersData';
 import { playIslamicTone } from '../utils/adhanAudio';
 import { CommunityDuasBoard } from './CommunityDuasBoard';
+import { GoogleAdBanner } from './GoogleAdBanner';
 
 export const HomeDashboard: React.FC = () => {
   const {
@@ -432,6 +433,9 @@ export const HomeDashboard: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Halal Google AdSense / Islamic Sponsor Banner */}
+      <GoogleAdBanner format="horizontal" placementName="الرئيسية" />
 
       {/* Real-time Firebase Community Duas Board */}
       <CommunityDuasBoard />

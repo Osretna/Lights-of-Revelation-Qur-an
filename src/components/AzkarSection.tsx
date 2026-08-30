@@ -18,6 +18,7 @@ import {
 import { useQuran } from '../context/QuranContext';
 import { AZKAR_CATEGORIES, AZKAR_ITEMS, DIGITAL_TASBEEH_PRESETS, AzkarCategory } from '../data/azkarData';
 import { ZikrItem } from '../types/quran';
+import { GoogleAdBanner } from './GoogleAdBanner';
 
 export const AzkarSection: React.FC = () => {
   const { showToast } = useQuran();
@@ -296,6 +297,9 @@ export const AzkarSection: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Halal Google AdSense / Sponsor Banner */}
+      <GoogleAdBanner format="horizontal" placementName="قسم الأذكار والتسبيح" />
     </div>
   );
 };

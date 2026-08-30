@@ -140,6 +140,15 @@ export interface AppSettings {
   lng: number;
   autoDetectLocation: boolean;
   showSponsorship: boolean;
+  // Google AdSense & Halal Ads Settings
+  adSenseEnabled: boolean;
+  adSensePublisherId: string;
+  adSenseBannerSlot: string;
+  adSenseInFeedSlot: string;
+  adSenseNativeSlot: string;
+  adSenseTestMode: boolean;
+  halalAdFilterActive: boolean;
+  showIslamicFallbackWhenNoAds: boolean;
 }
 
 export interface UserStats {

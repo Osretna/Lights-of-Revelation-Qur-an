@@ -19,6 +19,7 @@ import { SURAH_LIST } from '../data/surahList';
 import { TAFSIR_SCHOLARS, getTafsirForAyah, fetchLiveTafsirForAyah } from '../data/tafsirData';
 import { RECITERS_LIST } from '../data/recitersData';
 import { TafsirScholar } from '../types/quran';
+import { GoogleAdBanner } from './GoogleAdBanner';
 
 export const TafsirSection: React.FC = () => {
   const {
@@ -305,6 +306,9 @@ export const TafsirSection: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* Halal Google AdSense / Islamic Sponsor Banner */}
+      <GoogleAdBanner format="horizontal" placementName="قسم التفسير وعلوم القرآن" />
     </div>
   );
 };
