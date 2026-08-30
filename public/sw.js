@@ -1,5 +1,5 @@
 // Service Worker for "أنوار الوحي" Quran Application
-const CACHE_NAME = 'anwar-alwahy-v1.4.0';
+const CACHE_NAME = 'anwar-alwahy-v1.5.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -13,7 +13,11 @@ const STATIC_ASSETS = [
   '/apple-touch-icon.png',
   '/screenshot-mobile.png',
   '/screenshot-desktop.png',
-  '/quran-uthmani.json'
+  '/quran-uthmani.json',
+  '/adhan-makkah.mp3',
+  '/adhan-madinah.mp3',
+  '/adhan-abdulbasit.mp3',
+  '/adhan-egypt.mp3'
 ];
 
 // Install Event - Pre-cache core shell

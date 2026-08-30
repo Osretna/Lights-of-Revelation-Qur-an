@@ -37,12 +37,49 @@ export const MUADHINS_LIST: MuadhinOption[] = [
   }
 ];
 
+// Shared AudioContext for unlock & chime
+let sharedAudioCtx: AudioContext | null = null;
+let isAudioUnlocked = false;
+
+// Unlock Web Audio system on user gesture to allow background timer playback
+export function unlockAudioSystem(): boolean {
+  if (isAudioUnlocked && sharedAudioCtx?.state === 'running') {
+    return true;
+  }
+  try {
+    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return false;
+    
+    if (!sharedAudioCtx) {
+      sharedAudioCtx = new AudioContextClass();
+    }
+    
+    if (sharedAudioCtx.state === 'suspended') {
+      sharedAudioCtx.resume();
+    }
+
+    // Play a 1-sample silent buffer to unlock the browser audio engine
+    const buffer = sharedAudioCtx.createBuffer(1, 1, 22050);
+    const source = sharedAudioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(sharedAudioCtx.destination);
+    source.start(0);
+
+    isAudioUnlocked = true;
+    return true;
+  } catch (e) {
+    console.warn('Could not unlock audio engine:', e);
+    return false;
+  }
+}
+
 // Fallback pleasant notification sound using Web Audio API
 export function playIslamicTone() {
   try {
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
+    unlockAudioSystem();
+    const ctx = sharedAudioCtx || (new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)());
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
 
     const now = ctx.currentTime;
     const freqs = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
@@ -69,16 +106,17 @@ export function playIslamicTone() {
   }
 }
 
-// Play adhan audio with full multi-fallback cascade
-export function playAdhanAudio(muadhinId = 'makkah'): Promise<HTMLAudioElement | null> {
+// Play adhan audio with full multi-fallback cascade and MediaSession lock screen support
+export function playAdhanAudio(muadhinId = 'makkah', prayerName = 'الصلاة'): Promise<HTMLAudioElement | null> {
   return new Promise((resolve) => {
+    unlockAudioSystem();
     const muadhin = MUADHINS_LIST.find(m => m.id === muadhinId) || MUADHINS_LIST[0];
     const candidateUrls = [muadhin.audioUrl, ...(muadhin.fallbackUrls || [])];
 
     let index = 0;
     const tryNext = () => {
       if (index >= candidateUrls.length) {
-        // As a last resort, play the harmonic chime
+        // As a last resort, play harmonic chime
         playIslamicTone();
         resolve(null);
         return;
@@ -86,6 +124,24 @@ export function playAdhanAudio(muadhinId = 'makkah'): Promise<HTMLAudioElement |
 
       const audio = new Audio(candidateUrls[index]);
       audio.volume = 1.0;
+
+      // Update MediaSession on mobile lock screen
+      if ('mediaSession' in navigator) {
+        try {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: `أذان ${prayerName} 🕌`,
+            artist: muadhin.name,
+            album: 'تطبيق أنوار الوحي للقرآن الكريم',
+            artwork: [
+              { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+              { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }
+            ]
+          });
+        } catch {
+          // ignore
+        }
+      }
+
       audio
         .play()
         .then(() => {
@@ -137,7 +193,7 @@ export async function triggerPrayerNotification(title: string, body: string, ico
           badge: '/icon-96.png',
           tag: 'prayer-notification',
           data: { url: '/' },
-          ...({ vibrate: [200, 100, 200, 100, 300] } as any)
+          ...({ vibrate: [300, 150, 300, 150, 500] } as any)
         });
         return;
       }

@@ -239,44 +239,70 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           <div className="space-y-3">
             <label className="text-xs font-bold text-slate-700 dark:text-[#d4af37] flex items-center gap-1.5">
               <Bell className="w-4 h-4 text-[#d4af37]" />
-              <span>تنبيهات الأذان والصلاة:</span>
+              <span>تنبيهات وأذان الصلاة:</span>
             </label>
 
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#063321]/40 border border-slate-200 dark:border-[#d4af37]/20 flex items-center justify-between">
-              <div>
-                <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-[#f5f2ed]">
-                  تفعيل تنبيهات الأذان عند حلول وقت الصلاة
-                </h4>
-                <p className="text-[11px] text-slate-500 dark:text-[#f5f2ed]/60">
-                  إرسال إشعار بصوت الأذان المعتمد لمواقيت الصلوات الخمس
-                </p>
+            <div className="space-y-2">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#063321]/40 border border-slate-200 dark:border-[#d4af37]/20 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-[#f5f2ed]">
+                    تفعيل إشعارات الأذان بالنظام
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-[#f5f2ed]/60">
+                    إرسال إشعار للنظام مع الاهتزاز عند حلول وقت الصلاة
+                  </p>
+                </div>
+
+                <input
+                  type="checkbox"
+                  checked={settings.adhanNotification}
+                  onChange={e => {
+                    updateSettings({ adhanNotification: e.target.checked });
+                    showToast(e.target.checked ? 'تم تفعيل تنبيهات الأذان' : 'تم إيقاف تنبيهات الأذان');
+                  }}
+                  className="w-5 h-5 accent-[#d4af37] cursor-pointer"
+                />
               </div>
 
-              <input
-                type="checkbox"
-                checked={settings.adhanNotification}
-                onChange={e => {
-                  updateSettings({ adhanNotification: e.target.checked });
-                  showToast(e.target.checked ? 'تم تفعيل تنبيهات الأذان' : 'تم إيقاف تنبيهات الأذان');
-                }}
-                className="w-5 h-5 accent-[#d4af37] cursor-pointer"
-              />
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#063321]/40 border border-slate-200 dark:border-[#d4af37]/20 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-[#f5f2ed]">
+                    رفع صوت الأذان كاملاً تلقائياً 🔊
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-[#f5f2ed]/60">
+                    تشغيل صوت الأذان بصوت المؤذن المختار فور دخول الوقت حتى أثناء سكون الشاشة
+                  </p>
+                </div>
+
+                <input
+                  type="checkbox"
+                  checked={settings.playAdhanAudioOnTime}
+                  onChange={e => {
+                    updateSettings({ playAdhanAudioOnTime: e.target.checked });
+                    showToast(e.target.checked ? 'تم تفعيل رفع صوت الأذان تلقائياً 🕌' : 'تم إيقاف صوت الأذان التلقائي');
+                  }}
+                  className="w-5 h-5 accent-[#d4af37] cursor-pointer"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Section 4: Google AdSense & Halal Ads Toggle */}
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#063321]/40 border border-slate-200 dark:border-[#d4af37]/30 space-y-3">
+          {/* Section 4: Google AdSense & Halal Ads Settings */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-[#063321]/40 border border-slate-200 dark:border-[#d4af37]/30 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#d4af37]/20 text-[#d4af37] flex items-center justify-center font-bold">
-                  <ShieldCheck className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-2xl bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30 flex items-center justify-center font-bold flex-shrink-0">
+                  <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-[#d4af37]">
-                    إعلانات Google AdSense المتوافقة مع الشريعة
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-[#d4af37] flex items-center gap-2">
+                    <span>مساحات إعلانات Google AdSense المعتمدة</span>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                      جاهز للاعتماد ✓
+                    </span>
                   </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-[#f5f2ed]/60">
-                    فلترة وحظر إعلانات القمار، التعارف، الخمور، والربا بالكامل
+                  <p className="text-[11px] text-slate-500 dark:text-[#f5f2ed]/70 mt-0.5">
+                    إظهار مساحات الإعلانات مع تفعيل فلترة وحظر المحتوى المخل والربا والقمار 100%
                   </p>
                 </div>
               </div>
@@ -286,22 +312,69 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 checked={settings.adSenseEnabled}
                 onChange={e => {
                   updateSettings({ adSenseEnabled: e.target.checked });
-                  showToast(e.target.checked ? 'تم تفعيل إعلانات Google المفلترة' : 'تم إيقاف الإعلانات');
+                  showToast(e.target.checked ? 'تم تفعيل مساحات إعلانات Google AdSense' : 'تم إخفاء مساحات الإعلانات');
                 }}
                 className="w-5 h-5 accent-[#d4af37] cursor-pointer"
               />
             </div>
 
-            <div className="pt-2 border-t border-slate-200 dark:border-[#d4af37]/20 flex items-center justify-between">
+            {/* Publisher & Slot ID Configuration Fields */}
+            {settings.adSenseEnabled && (
+              <div className="p-3.5 rounded-xl bg-white dark:bg-[#042118] border border-slate-200 dark:border-[#d4af37]/20 space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-[#d4af37] flex items-center justify-between">
+                    <span>معرف الناشر في Google AdSense (Publisher ID):</span>
+                    <span className="text-[10px] font-mono text-emerald-500 dark:text-emerald-400">مربوط في ads.txt</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.adSensePublisherId || 'ca-pub-6359877001554870'}
+                    onChange={e => updateSettings({ adSensePublisherId: e.target.value.trim() })}
+                    placeholder="ca-pub-6359877001554870"
+                    className="w-full py-2 px-3 rounded-lg bg-slate-50 dark:bg-[#063321] border border-slate-300 dark:border-[#d4af37]/30 text-xs font-mono text-slate-800 dark:text-[#f5f2ed] focus:outline-none focus:border-[#d4af37]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                      معرف وحدة إعلان البانر (Banner Slot ID):
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.adSenseBannerSlot || '1234567890'}
+                      onChange={e => updateSettings({ adSenseBannerSlot: e.target.value.trim() })}
+                      placeholder="1234567890"
+                      className="w-full py-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-[#063321] border border-slate-300 dark:border-[#d4af37]/30 text-[11px] font-mono text-slate-800 dark:text-[#f5f2ed] focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                      معرف وحدة الإعلان المدمج (In-Feed Slot ID):
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.adSenseInFeedSlot || '9876543210'}
+                      onChange={e => updateSettings({ adSenseInFeedSlot: e.target.value.trim() })}
+                      placeholder="9876543210"
+                      className="w-full py-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-[#063321] border border-slate-300 dark:border-[#d4af37]/30 text-[11px] font-mono text-slate-800 dark:text-[#f5f2ed] focus:outline-none focus:border-[#d4af37]"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-slate-200 dark:border-[#d4af37]/20 flex flex-wrap items-center justify-between gap-2">
               <span className="text-[11px] text-slate-500 dark:text-slate-300">
                 حالة الفلترة الشرعية: <b className="text-emerald-500 dark:text-emerald-400">نشطة (حظر تام للمحرمات)</b>
               </span>
               <button
                 onClick={() => setShowGuideModal(true)}
-                className="text-xs font-bold text-[#d4af37] hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold text-[#d4af37] hover:underline flex items-center gap-1.5 cursor-pointer bg-[#d4af37]/10 px-3 py-1.5 rounded-xl border border-[#d4af37]/30"
               >
                 <BookOpen className="w-3.5 h-3.5" />
-                <span>دليل التفعيل في Google</span>
+                <span>دليل الربط والاعتماد في Google</span>
               </button>
             </div>
           </div>

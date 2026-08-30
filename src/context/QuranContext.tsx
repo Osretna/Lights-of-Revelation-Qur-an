@@ -22,7 +22,7 @@ import {
 } from '../utils/prayerCalculator';
 import { getSurahDetail } from '../data/quranSampleData';
 import { getOfflineSurahBlobUrl, isSurahSavedOffline } from '../utils/offlineAudioStorage';
-import { playAdhanAudio, triggerPrayerNotification, playIslamicTone } from '../utils/adhanAudio';
+import { playAdhanAudio, triggerPrayerNotification, playIslamicTone, unlockAudioSystem } from '../utils/adhanAudio';
 
 export type AppTab =
   | 'home'
@@ -254,6 +254,19 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return DEFAULT_SETTINGS;
     }
   });
+
+  // Unlock Web Audio engine on first user interaction for background Azan support
+  useEffect(() => {
+    const handleFirstGesture = () => {
+      unlockAudioSystem();
+    };
+    window.addEventListener('click', handleFirstGesture, { once: true });
+    window.addEventListener('touchstart', handleFirstGesture, { once: true });
+    return () => {
+      window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('touchstart', handleFirstGesture);
+    };
+  }, []);
 
   const updateSettings = (newSettings: Partial<AppSettings>) => {
     setSettings(prev => {
@@ -1015,7 +1028,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               `حي على الصلاة، حي على الفلاح - تقبل الله طاعتكم`
             );
             if (settings.playAdhanAudioOnTime) {
-              playAdhanAudio(settings.adhanMuadhin);
+              playAdhanAudio(settings.adhanMuadhin, nextInfo.nameArabic);
             }
           }
         }

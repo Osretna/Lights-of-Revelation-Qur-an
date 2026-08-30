@@ -19,9 +19,10 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
-import { MUADHINS_LIST, playIslamicTone, playAdhanAudio, requestNotificationPermission, triggerPrayerNotification } from '../utils/adhanAudio';
+import { MUADHINS_LIST, playIslamicTone, playAdhanAudio, requestNotificationPermission, triggerPrayerNotification, unlockAudioSystem } from '../utils/adhanAudio';
 import { POPULAR_CITIES, CALCULATION_METHODS, CityLocation, formatPrayerTime } from '../utils/prayerCalculator';
 import { AppSettings, PrayerOffsets } from '../types/quran';
+import { GoogleAdBanner } from './GoogleAdBanner';
 
 export const PrayerTimesSection: React.FC = () => {
   const {
@@ -106,6 +107,7 @@ export const PrayerTimesSection: React.FC = () => {
   };
 
   const handleTestNotification = async () => {
+    unlockAudioSystem();
     const perm = await requestNotificationPermission();
     if (perm === 'granted') {
       triggerPrayerNotification(
@@ -113,7 +115,7 @@ export const PrayerTimesSection: React.FC = () => {
         `حان الآن موعد صلاة ${nextPrayer.nameArabic} - تقبل الله طاعتكم`
       );
       playIslamicTone();
-      showToast('تم إرسال إشعار تجريبي بنجاح 🔔');
+      showToast('تم إرسال إشعار تجريبي وتنشيط محرك الصوت بنجاح 🔔');
     } else {
       showToast('يرجى السماح بالإشعارات من إعدادات المتصفح لتفعيل التنبيهات.');
     }
@@ -483,10 +485,10 @@ export const PrayerTimesSection: React.FC = () => {
           <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#042118] border border-slate-200 dark:border-[#d4af37]/20 flex items-center justify-between">
             <div>
               <span className="text-xs font-bold text-slate-800 dark:text-[#f5f2ed] block">
-                تفعيل الإشعارات والأذان
+                تفعيل إشعارات الأذان بالنظام
               </span>
               <span className="text-[11px] text-slate-500 dark:text-[#f5f2ed]/60">
-                إرسال إشعار وتشغيل الأذان عند دخول وقت الصلاة
+                إرسال إشعار للنظام مع الاهتزاز عند دخول وقت الصلاة
               </span>
             </div>
             <input
@@ -494,7 +496,34 @@ export const PrayerTimesSection: React.FC = () => {
               checked={settings.adhanNotification}
               onChange={e => {
                 updateSettings({ adhanNotification: e.target.checked });
-                if (e.target.checked) requestNotificationPermission();
+                if (e.target.checked) {
+                  unlockAudioSystem();
+                  requestNotificationPermission();
+                }
+              }}
+              className="w-5 h-5 accent-[#d4af37] cursor-pointer"
+            />
+          </div>
+
+          {/* Adhan Sound on Time Switch */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#042118] border border-slate-200 dark:border-[#d4af37]/20 flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-slate-800 dark:text-[#f5f2ed] block">
+                تشغيل صوت الأذان كاملاً عند دخول الوقت 🔊
+              </span>
+              <span className="text-[11px] text-slate-500 dark:text-[#f5f2ed]/60">
+                رفع الأذان بصوت المؤذن المختار تلقائياً فور دخول وقت الصلاة
+              </span>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.playAdhanAudioOnTime}
+              onChange={e => {
+                updateSettings({ playAdhanAudioOnTime: e.target.checked });
+                if (e.target.checked) {
+                  unlockAudioSystem();
+                  showToast('تم تفعيل رفع صوت الأذان تلقائياً عند دخول الوقت 🕌');
+                }
               }}
               className="w-5 h-5 accent-[#d4af37] cursor-pointer"
             />
@@ -550,6 +579,48 @@ export const PrayerTimesSection: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Guide Card: How Azan Works in Background and When Phone is Locked */}
+      <div className="bg-gradient-to-r from-[#031c14] to-[#063321] border border-[#d4af37]/30 rounded-3xl p-5 text-[#f5f2ed] shadow-md space-y-3">
+        <div className="flex items-center gap-2">
+          <Info className="w-5 h-5 text-[#d4af37]" />
+          <h3 className="font-bold text-sm sm:text-base text-[#d4af37]">
+            كيف يعمل الأذان والتنبيه عند قفل شاشة الهاتف أو إغلاقه؟ 📱
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs leading-relaxed">
+          <div className="p-3 rounded-2xl bg-[#042118]/80 border border-[#d4af37]/20 space-y-1">
+            <div className="font-bold text-[#d4af37] flex items-center gap-1.5">
+              <span>١. تثبيت التطبيق (PWA)</span>
+            </div>
+            <p className="text-slate-300 text-[11px]">
+              اضغط على خيارات المتصفح (⋮) ثم <strong>«تثبيت التطبيق»</strong> أو <strong>«إضافة إلى الشاشة الرئيسية»</strong> ليعمل التطبيق في خلفية النظام كالتطبيقات الرسمية.
+            </p>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-[#042118]/80 border border-[#d4af37]/20 space-y-1">
+            <div className="font-bold text-[#d4af37] flex items-center gap-1.5">
+              <span>٢. السماح بالإشعارات</span>
+            </div>
+            <p className="text-slate-300 text-[11px]">
+              تأكد من الضغط على <strong>«تجربة الإشعار 🔔»</strong> والموافقة على إذن الإشعارات لتصلك تنبيهات الأذان والاهتزاز حتى والشاشة مغلقة.
+            </p>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-[#042118]/80 border border-[#d4af37]/20 space-y-1">
+            <div className="font-bold text-[#d4af37] flex items-center gap-1.5">
+              <span>٣. إبقاء التطبيق بالخلفية</span>
+            </div>
+            <p className="text-slate-300 text-[11px]">
+              لا تقم بإغلاق التطبيق نهائياً من مدير المهام (Recent Apps)، واستثنه من موفر البطارية لضمان دقة الأذان بالثانية.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Halal Google AdSense Slot */}
+      <GoogleAdBanner format="horizontal" placementName="صفحة مواقيت الصلاة والأذان" />
 
       {/* Manual Minute Offset Calibrator Modal */}
       <AnimatePresence>

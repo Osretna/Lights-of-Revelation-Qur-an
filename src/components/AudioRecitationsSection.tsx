@@ -25,6 +25,7 @@ import {
   deleteSurahOffline,
   isSurahSavedOffline
 } from '../utils/offlineAudioStorage';
+import { GoogleAdBanner } from './GoogleAdBanner';
 
 export const AudioRecitationsSection: React.FC = () => {
   const {
@@ -244,6 +245,9 @@ export const AudioRecitationsSection: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Halal Google AdSense Slot */}
+        <GoogleAdBanner format="horizontal" placementName="قسم التلاوات الصوتية" />
 
         {/* Surahs Audio List */}
         {filteredSurahs.length === 0 ? (

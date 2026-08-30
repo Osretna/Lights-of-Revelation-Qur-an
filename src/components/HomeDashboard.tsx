@@ -386,7 +386,7 @@ export const HomeDashboard: React.FC = () => {
             <span>تطبيق أنوار الوحي للقرآن الكريم</span>
             <button
               onClick={() => setActiveTab('quran')}
-              className="text-[#d4af37] font-bold hover:underline flex items-center gap-1"
+              className="text-[#d4af37] font-bold hover:underline flex items-center gap-1 cursor-pointer"
             >
               <span>ابدأ التلاوة المباركة</span>
               <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
@@ -394,6 +394,9 @@ export const HomeDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Middle In-Feed Native Google AdSense Placement */}
+      <GoogleAdBanner format="in-feed" placementName="منتصف الصفحة الرئيسية (In-Feed Native Ad)" />
 
       {/* Famous Reciters Quick Carousel */}
       <div className="bg-[#063321] border border-[#d4af37]/25 rounded-3xl p-6 shadow-md">
@@ -406,7 +409,7 @@ export const HomeDashboard: React.FC = () => {
           </div>
           <button
             onClick={() => setActiveTab('audio')}
-            className="text-xs text-[#d4af37] font-bold hover:underline flex items-center gap-1"
+            className="text-xs text-[#d4af37] font-bold hover:underline flex items-center gap-1 cursor-pointer"
           >
             <span>عرض كل القراء</span>
             <ChevronLeft className="w-4 h-4" />
@@ -437,8 +440,8 @@ export const HomeDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Halal Google AdSense / Islamic Sponsor Banner */}
-      <GoogleAdBanner format="horizontal" placementName="الرئيسية" />
+      {/* Halal Google AdSense / Islamic Sponsor Leaderboard Banner */}
+      <GoogleAdBanner format="leaderboard" placementName="الصفحة الرئيسية (Bottom Leaderboard)" />
 
       {/* Real-time Firebase Community Duas Board */}
       <CommunityDuasBoard />
