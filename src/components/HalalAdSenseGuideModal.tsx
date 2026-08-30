@@ -184,6 +184,18 @@ export const HalalAdSenseGuideModal: React.FC<HalalAdSenseGuideModalProps> = ({ 
                     </p>
                   </div>
                 </div>
+
+                <div className="p-3.5 rounded-2xl bg-emerald-950/70 border border-emerald-500/40 flex gap-3 items-start">
+                  <div className="w-6 h-6 rounded-full bg-emerald-400 text-[#042118] flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5">
+                    ✓
+                  </div>
+                  <div className="text-xs space-y-1">
+                    <h5 className="font-bold text-emerald-300">صفحة سياسة الخصوصية جاهزة ومعتمدة:</h5>
+                    <p className="text-slate-300 leading-relaxed">
+                      تتطلب Google AdSense وجود صفحة سياسة خصوصية صريحة لملفات الكوكيز وإعلانات Google. تم إعدادها بالكامل برابط مباشر <a href="/privacy.html" target="_blank" className="text-[#d4af37] underline font-mono font-bold">/privacy.html</a> والبريد الإلكتروني المعتمد <code className="text-amber-300 font-mono">s.mohamed1111111@gmail.com</code>.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="pt-2 flex justify-end">

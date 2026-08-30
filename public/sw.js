@@ -3,6 +3,7 @@ const CACHE_NAME = 'anwar-alwahy-v1.5.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/privacy.html',
   '/manifest.json',
   '/favicon.svg',
   '/favicon.png',

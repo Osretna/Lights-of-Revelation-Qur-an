@@ -19,6 +19,7 @@ import {
 import { useQuran } from '../context/QuranContext';
 import { HalalAdSenseGuideModal } from './HalalAdSenseGuideModal';
 import { DesignerSignature } from './DesignerSignature';
+import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -27,6 +28,7 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const { settings, updateSettings, showToast } = useQuran();
   const [showGuideModal, setShowGuideModal] = useState<boolean>(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState<boolean>(false);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
@@ -369,13 +371,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               <span className="text-[11px] text-slate-500 dark:text-slate-300">
                 حالة الفلترة الشرعية: <b className="text-emerald-500 dark:text-emerald-400">نشطة (حظر تام للمحرمات)</b>
               </span>
-              <button
-                onClick={() => setShowGuideModal(true)}
-                className="text-xs font-bold text-[#d4af37] hover:underline flex items-center gap-1.5 cursor-pointer bg-[#d4af37]/10 px-3 py-1.5 rounded-xl border border-[#d4af37]/30"
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>دليل الربط والاعتماد في Google</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowPrivacyModal(true)}
+                  className="text-xs font-bold text-slate-700 dark:text-[#f5f2ed] hover:text-[#d4af37] flex items-center gap-1.5 cursor-pointer bg-slate-100 dark:bg-[#063321] px-3 py-1.5 rounded-xl border border-slate-300 dark:border-[#d4af37]/30"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#d4af37]" />
+                  <span>سياسة الخصوصية</span>
+                </button>
+
+                <button
+                  onClick={() => setShowGuideModal(true)}
+                  className="text-xs font-bold text-[#d4af37] hover:underline flex items-center gap-1.5 cursor-pointer bg-[#d4af37]/10 px-3 py-1.5 rounded-xl border border-[#d4af37]/30"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>دليل الربط والاعتماد في Google</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -402,13 +414,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           </div>
 
           {/* Section 6: About Anwar Al-Wahy & Designer Tribute */}
-          <div className="p-4 rounded-2xl bg-[#063321] text-[#f5f2ed] border border-[#d4af37]/30 text-center space-y-2">
+          <div className="p-4 rounded-2xl bg-[#063321] text-[#f5f2ed] border border-[#d4af37]/30 text-center space-y-3">
             <h4 className="font-serif text-base font-bold text-[#d4af37]">
               تطبيق أنوار الوحي للقرآن الكريم
             </h4>
             <p className="text-xs text-[#f5f2ed]/80 leading-relaxed max-w-md mx-auto">
               تطبيق إسلامي شامل ومجاني لوجه الله تعالى، يجمع بين القراءة، التلاوة العطرة، التفاسير المعتمدة، أوقات الصلاة، واتجاه القبلة.
             </p>
+            <div className="flex items-center justify-center gap-3 pt-1">
+              <button
+                onClick={() => setShowPrivacyModal(true)}
+                className="text-[11px] text-[#d4af37] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>سياسة الخصوصية وملفات الكوكيز</span>
+              </button>
+              <span className="text-slate-500">•</span>
+              <a
+                href="/privacy.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-slate-300 hover:text-white underline font-semibold"
+              >
+                صفحة الخصوصية المستقلة (HTML)
+              </a>
+            </div>
             <p className="text-[11px] text-[#d4af37]/60 font-mono">الإصدار 1.0.0 • جميع الحقوق محفوظة لكل مسلم ومسلمة</p>
           </div>
 
@@ -418,6 +448,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       </motion.div>
 
       {showGuideModal && <HalalAdSenseGuideModal onClose={() => setShowGuideModal(false)} />}
+      {showPrivacyModal && <PrivacyPolicyModal onClose={() => setShowPrivacyModal(false)} />}
     </div>
   );
 };

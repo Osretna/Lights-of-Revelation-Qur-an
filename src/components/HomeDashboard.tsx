@@ -17,7 +17,8 @@ import {
   Calendar,
   Share2,
   Copy,
-  ChevronLeft
+  ChevronLeft,
+  ShieldCheck
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 import { SURAH_LIST } from '../data/surahList';
@@ -27,6 +28,7 @@ import { formatPrayerTime } from '../utils/prayerCalculator';
 import { CommunityDuasBoard } from './CommunityDuasBoard';
 import { GoogleAdBanner } from './GoogleAdBanner';
 import { DesignerSignature } from './DesignerSignature';
+import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 
 export const HomeDashboard: React.FC = () => {
   const {
@@ -41,6 +43,8 @@ export const HomeDashboard: React.FC = () => {
     playSurahAudio,
     showToast
   } = useQuran();
+
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = React.useState<boolean>(false);
 
   const handleContinueReading = () => {
     setSelectedSurahNum(readingProgress.lastSurahNumber);
@@ -448,6 +452,44 @@ export const HomeDashboard: React.FC = () => {
 
       {/* Official Architect & Lead Engineer Signature with 6-Spectrum Illumination */}
       <DesignerSignature variant="card" />
+
+      {/* Application Footer & Privacy Policy Links */}
+      <footer className="w-full max-w-4xl mx-auto py-6 px-4 text-center border-t border-[#d4af37]/15 mt-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold">
+          <button
+            onClick={() => setShowPrivacyPolicy(true)}
+            className="text-slate-300 hover:text-[#d4af37] flex items-center gap-1.5 cursor-pointer transition-colors"
+          >
+            <ShieldCheck className="w-4 h-4 text-[#d4af37]" />
+            <span>سياسة الخصوصية وملفات تعريف الارتباط</span>
+          </button>
+          <span className="text-[#d4af37]/40">•</span>
+          <a
+            href="/privacy.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-slate-400 hover:text-[#d4af37] transition-colors"
+          >
+            رابط سياسة الخصوصية المباشر (Google AdSense URL)
+          </a>
+          <span className="text-[#d4af37]/40">•</span>
+          <a
+            href="mailto:s.mohamed1111111@gmail.com"
+            className="text-slate-400 hover:text-[#d4af37] transition-colors font-mono"
+            dir="ltr"
+          >
+            s.mohamed1111111@gmail.com
+          </a>
+        </div>
+        <p className="text-[11px] text-slate-500">
+          جميع الحقوق محفوظة © تطبيق وموقع أنوار الوحي للقرآن الكريم • وقف لله تعالى
+        </p>
+      </footer>
+
+      {/* Privacy Policy Modal */}
+      {showPrivacyPolicy && (
+        <PrivacyPolicyModal onClose={() => setShowPrivacyPolicy(false)} />
+      )}
     </div>
   );
 };
