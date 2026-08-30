@@ -21,7 +21,7 @@ export const POPULAR_CITIES: CityLocation[] = [
   { name: 'الدوحة', country: 'قطر', lat: 25.2854, lng: 51.5310, timezone: 3 },
   { name: 'مسقط', country: 'عمان', lat: 23.5880, lng: 58.3829, timezone: 4 },
   { name: 'المنامة', country: 'البحرين', lat: 26.2285, lng: 50.5860, timezone: 3 },
-  { name: 'عمان', country: 'الأردن', lat: 31.9454, lng: 35.9284, timezone: 3 },
+  { name: 'عمّان', country: 'الأردن', lat: 31.9454, lng: 35.9284, timezone: 3 },
   { name: 'بيروت', country: 'لبنان', lat: 33.8938, lng: 35.5018, timezone: 2 },
   { name: 'دمشق', country: 'سوريا', lat: 33.5138, lng: 36.2765, timezone: 3 },
   { name: 'بغداد', country: 'العراق', lat: 33.3152, lng: 44.3661, timezone: 3 },
@@ -43,11 +43,11 @@ export const POPULAR_CITIES: CityLocation[] = [
 const KAABA_LAT = 21.422487;
 const KAABA_LNG = 39.826206;
 
-// Convert degrees to radians and vice versa
+// Angle conversions
 const rad = (d: number) => (d * Math.PI) / 180.0;
 const deg = (r: number) => (r * 180.0) / Math.PI;
 
-// Calculate Qibla bearing from user coordinates
+// Qibla direction bearing
 export function calculateQiblaDirection(userLat: number, userLng: number): number {
   const phiK = rad(KAABA_LAT);
   const lambdaK = rad(KAABA_LNG);
@@ -57,13 +57,13 @@ export function calculateQiblaDirection(userLat: number, userLng: number): numbe
   const deltaLambda = lambdaK - lambda;
   const y = Math.sin(deltaLambda);
   const x = Math.cos(phi) * Math.tan(phiK) - Math.sin(phi) * Math.cos(deltaLambda);
-  let qibla = deg(Math.atan2(y, x));
+  const qibla = deg(Math.atan2(y, x));
   return (qibla + 360) % 360;
 }
 
-// Calculate distance to Kaaba in kilometers
+// Distance to Kaaba in kilometers
 export function calculateDistanceToKaaba(userLat: number, userLng: number): number {
-  const R = 6371; // Earth's mean radius in km
+  const R = 6371;
   const dLat = rad(KAABA_LAT - userLat);
   const dLng = rad(KAABA_LNG - userLng);
   const a =
@@ -73,7 +73,107 @@ export function calculateDistanceToKaaba(userLat: number, userLng: number): numb
   return Math.round(R * c);
 }
 
-// Calculate prayer times for a given date, coordinates, and calculation method
+// Reverse Geocoding Helper
+export async function reverseGeocode(lat: number, lng: number): Promise<{ city: string; country: string; fullName: string }> {
+  try {
+    const res = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=ar`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const city = data.city || data.locality || data.principalSubdivision || '';
+      const country = data.countryName || '';
+      if (city || country) {
+        const fullName = city && country ? `${city}، ${country}` : city || country;
+        return { city: city || country, country, fullName };
+      }
+    }
+  } catch (e) {
+    console.warn('BigDataCloud geocode failed, trying fallback', e);
+  }
+
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ar`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const addr = data.address || {};
+      const city = addr.city || addr.town || addr.village || addr.state || '';
+      const country = addr.country || '';
+      if (city || country) {
+        const fullName = city && country ? `${city}، ${country}` : city || country;
+        return { city: city || country, country, fullName };
+      }
+    }
+  } catch (e) {
+    console.warn('OSM geocode fallback failed', e);
+  }
+
+  // Nearest city from POPULAR_CITIES
+  let closest = POPULAR_CITIES[0];
+  let minD = Infinity;
+  for (const c of POPULAR_CITIES) {
+    const d = Math.hypot(c.lat - lat, c.lng - lng);
+    if (d < minD) {
+      minD = d;
+      closest = c;
+    }
+  }
+  return { city: closest.name, country: closest.country, fullName: `${closest.name}، ${closest.country}` };
+}
+
+// Aladhan Online API
+export async function fetchLiveAladhanTimings(
+  lat: number,
+  lng: number,
+  methodName: string = 'Makkah'
+): Promise<PrayerTimeData | null> {
+  try {
+    let methodId = 4; // Umm al-Qura, Makkah
+    if (methodName === 'Egypt') methodId = 5;
+    else if (methodName === 'MWL') methodId = 3;
+    else if (methodName === 'ISNA') methodId = 2;
+    else if (methodName === 'Karachi') methodId = 1;
+
+    const today = new Date();
+    const dateStr = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
+    const res = await fetch(
+      `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lng}&method=${methodId}`
+    );
+    if (res.ok) {
+      const json = await res.json();
+      if (json.data && json.data.timings) {
+        const t = json.data.timings;
+        const h = json.data.date?.hijri;
+        const cleanTime = (val: string) => {
+          if (!val) return '00:00';
+          const match = val.match(/^(\d{1,2}:\d{2})/);
+          return match ? match[1].padStart(5, '0') : val.slice(0, 5);
+        };
+
+        return {
+          fajr: cleanTime(t.Fajr),
+          sunrise: cleanTime(t.Sunrise),
+          dhuhr: cleanTime(t.Dhuhr),
+          asr: cleanTime(t.Asr),
+          maghrib: cleanTime(t.Maghrib),
+          isha: cleanTime(t.Isha),
+          date: today.toISOString().split('T')[0],
+          hijriDate: h ? `${h.day} ${h.month?.ar || h.month?.en || ''} ${h.year} هـ` : '',
+          hijriDay: h?.day?.toString() || '',
+          hijriMonth: h?.month?.ar || '',
+          hijriYear: h?.year?.toString() || ''
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Online Aladhan fetch failed, falling back to local algorithm', e);
+  }
+  return null;
+}
+
+// Offline Astronomical Prayer Times Calculation
 export function calculatePrayerTimes(
   date: Date,
   lat: number,
@@ -81,7 +181,6 @@ export function calculatePrayerTimes(
   method: 'MWL' | 'ISNA' | 'Egypt' | 'Makkah' | 'Karachi' = 'Makkah',
   juristic: 'shafii' | 'hanafi' = 'shafii'
 ): PrayerTimeData {
-  // Calculation parameters by method
   let fajrAngle = 18.5;
   let ishaAngle = 17.5;
   let ishaFixedMinutes = 0;
@@ -112,12 +211,12 @@ export function calculatePrayerTimes(
 
   const asrFactor = juristic === 'hanafi' ? 2 : 1;
 
-  // Day of year
+  // Day of year calculation
   const start = new Date(date.getFullYear(), 0, 0);
   const diff = date.getTime() - start.getTime() + (start.getTimezoneOffset() - date.getTimezoneOffset()) * 60 * 1000;
   const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-  // Approximate solar declination & equation of time
+  // Solar declination & equation of time (standard Meeus approximations)
   const B = (360 / 365) * (dayOfYear - 81);
   const B_rad = rad(B);
   const eot = 9.87 * Math.sin(2 * B_rad) - 7.53 * Math.cos(B_rad) - 1.5 * Math.sin(B_rad); // in minutes
@@ -125,36 +224,41 @@ export function calculatePrayerTimes(
   const dec_rad = rad(declination);
   const lat_rad = rad(lat);
 
-  // Time zone offset in hours
+  // Timezone offset in hours from browser
   const timezoneOffset = -date.getTimezoneOffset() / 60;
 
-  // Solar Noon in local clock time (hours)
+  // Solar Noon (hours in local time)
   const solarNoon = 12 + timezoneOffset - lng / 15 - eot / 60;
 
-  // Hour angle helper
-  const getHourAngle = (angle: number) => {
-    const cosHA = (Math.sin(rad(angle)) - Math.sin(lat_rad) * Math.sin(dec_rad)) / (Math.cos(lat_rad) * Math.cos(dec_rad));
-    if (cosHA > 1) return 0; // sun never rises that high
-    if (cosHA < -1) return 180; // sun never sets that low
+  // Hour angle helper for sun altitude angle (alpha in degrees)
+  const getHourAngle = (alpha: number) => {
+    const sinAlpha = Math.sin(rad(alpha));
+    const cosHA = (sinAlpha - Math.sin(lat_rad) * Math.sin(dec_rad)) / (Math.cos(lat_rad) * Math.cos(dec_rad));
+    if (cosHA > 1) return 0;
+    if (cosHA < -1) return 180;
     return deg(Math.acos(cosHA));
   };
 
-  // Sunrise / Sunset hour angle (-0.833° for refraction & sun disc)
+  // Sunrise / Sunset (-0.833° for atmospheric refraction and solar disc)
   const sunriseHA = getHourAngle(-0.833);
   const sunriseHours = solarNoon - sunriseHA / 15;
   const sunsetHours = solarNoon + sunriseHA / 15;
 
-  // Fajr hour angle
+  // Fajr (-fajrAngle below horizon)
   const fajrHA = getHourAngle(-fajrAngle);
   const fajrHours = solarNoon - fajrHA / 15;
 
-  // Asr
-  const asrAngle = -deg(Math.atan(1 / (asrFactor + Math.tan(Math.abs(lat_rad - dec_rad)))));
-  const asrHA = getHourAngle(asrAngle);
+  // Dhuhr (solar noon + slight buffer e.g. 1 min)
+  const dhuhrHours = solarNoon + (1 / 60);
+
+  // Asr: Altitude angle is POSITIVE above horizon:
+  // tan(altitude) = 1 / (asrFactor + tan(|lat - dec|))
+  const asrAltitude = deg(Math.atan(1 / (asrFactor + Math.tan(Math.abs(lat_rad - dec_rad)))));
+  const asrHA = getHourAngle(asrAltitude);
   const asrHours = solarNoon + asrHA / 15;
 
-  // Maghrib
-  const maghribHours = sunsetHours + 0.04; // ~2.5 mins after sunset for verification
+  // Maghrib: sunset + ~2.5 mins
+  const maghribHours = sunsetHours + (2.5 / 60);
 
   // Isha
   let ishaHours: number;
@@ -165,7 +269,6 @@ export function calculatePrayerTimes(
     ishaHours = solarNoon + ishaHA / 15;
   }
 
-  // Format into HH:MM
   const formatTime = (timeInHours: number): string => {
     let normalized = (timeInHours + 24) % 24;
     const h = Math.floor(normalized);
@@ -175,13 +278,12 @@ export function calculatePrayerTimes(
     return `${hStr}:${mStr}`;
   };
 
-  // Hijri Date estimation
   const hijri = getHijriDate(date);
 
   return {
     fajr: formatTime(fajrHours),
     sunrise: formatTime(sunriseHours),
-    dhuhr: formatTime(solarNoon),
+    dhuhr: formatTime(dhuhrHours),
     asr: formatTime(asrHours),
     maghrib: formatTime(maghribHours),
     isha: formatTime(ishaHours),
@@ -193,7 +295,6 @@ export function calculatePrayerTimes(
   };
 }
 
-// Arabic Hijri months
 const HIJRI_MONTHS = [
   'المحرّم',
   'صفر',
@@ -210,7 +311,6 @@ const HIJRI_MONTHS = [
 ];
 
 export function getHijriDate(gregorianDate: Date) {
-  // Kuwaity algorithm approximation for Hijri
   const day = gregorianDate.getDate();
   const month = gregorianDate.getMonth();
   const year = gregorianDate.getFullYear();
@@ -233,38 +333,26 @@ export function getHijriDate(gregorianDate: Date) {
     }
   }
 
-  let jd = Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + day + b - 1524;
-  b = 0;
-  if (jd > 2299160) {
-    a = Math.floor((jd - 1867216.25) / 36524.25);
-    b = 1 + a - Math.floor(a / 4);
-  }
-  let bb = jd + b + 1524;
-  let cc = Math.floor((bb - 122.1) / 365.25);
-  let dd = Math.floor(365.25 * cc);
-  let ee = Math.floor((bb - dd) / 30.6001);
-  day;
-
-  let z = jd - 1948440 + 10632;
-  let n = Math.floor((z - 1) / 10631);
-  z = z - 10631 * n + 354;
-  let j =
-    Math.floor((10985 - z) / 5316) * Math.floor((50 * z) / 17719) +
-    Math.floor(z / 5670) * Math.floor((43 * z) / 15238);
-  z =
-    z -
+  const jd = Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + day + b - 1524;
+  const z = jd - 1948440 + 10632;
+  const n = Math.floor((z - 1) / 10631);
+  const remZ = z - 10631 * n + 354;
+  const j =
+    Math.floor((10985 - remZ) / 5316) * Math.floor((50 * remZ) / 17719) +
+    Math.floor(remZ / 5670) * Math.floor((43 * remZ) / 15238);
+  const rem2 =
+    remZ -
     Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50) -
     Math.floor(j / 16) * Math.floor((15238 * j) / 43) +
     29;
-  let hijriMonth = Math.floor((24 * z) / 709);
-  let hijriDay = z - Math.floor((709 * hijriMonth) / 24);
-  let hijriYear = 30 * n + j - 30;
+  const hijriMonth = Math.floor((24 * rem2) / 709);
+  const hijriDay = rem2 - Math.floor((709 * hijriMonth) / 24);
+  const hijriYear = 30 * n + j - 30;
 
-  // Clamp month index
   const safeMonthIndex = Math.max(0, Math.min(11, hijriMonth - 1));
 
   return {
-    day: hijriDay,
+    day: Math.max(1, Math.min(30, hijriDay)),
     month: hijriMonth,
     monthName: HIJRI_MONTHS[safeMonthIndex] || HIJRI_MONTHS[0],
     year: hijriYear
@@ -279,11 +367,12 @@ export interface NextPrayerInfo {
   remainingSeconds: number;
   formattedCountdown: string;
   percentage: number;
+  currentPrayerName: string;
 }
 
 export function getNextPrayer(prayers: PrayerTimeData): NextPrayerInfo {
   const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
   const prayerList = [
     { key: 'fajr', nameArabic: 'الفجر', time: prayers.fajr },
@@ -295,54 +384,56 @@ export function getNextPrayer(prayers: PrayerTimeData): NextPrayerInfo {
   ];
 
   const parsedPrayers = prayerList.map(p => {
-    const [h, m] = p.time.split(':').map(Number);
-    return { ...p, totalMinutes: h * 60 + m };
+    const parts = (p.time || '00:00').split(':').map(Number);
+    const h = isNaN(parts[0]) ? 0 : parts[0];
+    const m = isNaN(parts[1]) ? 0 : parts[1];
+    return { ...p, totalSeconds: h * 3600 + m * 60 };
   });
 
-  let next = parsedPrayers.find(p => p.totalMinutes > currentMinutes);
-  let prevIndex = 0;
+  // Find next upcoming prayer today
+  const next = parsedPrayers.find(p => p.totalSeconds > currentSeconds);
 
   if (!next) {
-    // Next prayer is tomorrow's Fajr
-    next = parsedPrayers[0];
-    prevIndex = parsedPrayers.length - 1;
-    const diff = 24 * 60 - currentMinutes + next.totalMinutes;
-    const remainingSec = Math.floor(diff * 60);
+    // Current time is after Isha -> Next prayer is tomorrow's Fajr
+    const tomorrowFajr = parsedPrayers[0];
+    const remainingSec = 86400 - currentSeconds + tomorrowFajr.totalSeconds;
     const hrs = Math.floor(remainingSec / 3600);
     const mins = Math.floor((remainingSec % 3600) / 60);
     const secs = remainingSec % 60;
+
     return {
-      name: next.key,
-      nameArabic: next.nameArabic,
-      timeString: next.time,
-      remainingMinutes: Math.floor(diff),
+      name: tomorrowFajr.key,
+      nameArabic: tomorrowFajr.nameArabic,
+      timeString: tomorrowFajr.time,
+      remainingMinutes: Math.floor(remainingSec / 60),
       remainingSeconds: remainingSec,
       formattedCountdown: `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`,
-      percentage: 25
+      percentage: 20,
+      currentPrayerName: 'العشاء'
     };
   }
 
   const nextIndex = parsedPrayers.indexOf(next);
-  prevIndex = nextIndex === 0 ? parsedPrayers.length - 1 : nextIndex - 1;
-  const prevTime = parsedPrayers[prevIndex].totalMinutes;
-  
-  const diff = next.totalMinutes - currentMinutes;
-  const remainingSec = Math.floor(diff * 60);
+  const prevIndex = nextIndex === 0 ? parsedPrayers.length - 1 : nextIndex - 1;
+  const prevPrayer = parsedPrayers[prevIndex];
+
+  const remainingSec = next.totalSeconds - currentSeconds;
   const hrs = Math.floor(remainingSec / 3600);
   const mins = Math.floor((remainingSec % 3600) / 60);
   const secs = remainingSec % 60;
 
-  const totalWindow = (next.totalMinutes - prevTime + 1440) % 1440;
-  const elapsed = (currentMinutes - prevTime + 1440) % 1440;
+  const totalWindow = (next.totalSeconds - prevPrayer.totalSeconds + 86400) % 86400;
+  const elapsed = (currentSeconds - prevPrayer.totalSeconds + 86400) % 86400;
   const percentage = Math.min(100, Math.max(0, (elapsed / (totalWindow || 1)) * 100));
 
   return {
     name: next.key,
     nameArabic: next.nameArabic,
     timeString: next.time,
-    remainingMinutes: Math.floor(diff),
+    remainingMinutes: Math.floor(remainingSec / 60),
     remainingSeconds: remainingSec,
     formattedCountdown: `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`,
-    percentage
+    percentage,
+    currentPrayerName: prevPrayer.nameArabic
   };
 }

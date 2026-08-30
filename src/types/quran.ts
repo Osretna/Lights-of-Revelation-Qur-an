@@ -125,6 +125,15 @@ export interface AppSettings {
   prayerCalcMethod: 'MWL' | 'ISNA' | 'Egypt' | 'Makkah' | 'Karachi';
   juristicMethod: 'shafii' | 'hanafi';
   adhanNotification: boolean;
+  adhanReminderMinutes: number; // 0 (at adhan time), 5, 10, 15 minutes before
+  playAdhanAudioOnTime: boolean;
+  adhanNotificationPrayers: {
+    fajr: boolean;
+    dhuhr: boolean;
+    asr: boolean;
+    maghrib: boolean;
+    isha: boolean;
+  };
   adhanMuadhin: string;
   locationCity: string;
   lat: number;
@@ -132,3 +141,16 @@ export interface AppSettings {
   autoDetectLocation: boolean;
   showSponsorship: boolean;
 }
+
+export interface UserStats {
+  pagesRead: number[];
+  totalPagesRead: number;
+  streakDays: number;
+  lastActiveDate: string;
+  listeningSeconds: number;
+  completedKhatmahsCount: number;
+  tasbeehTotalCount: number;
+  correctionAttempts: number;
+  correctionSuccessCount: number;
+}
+

@@ -25,6 +25,7 @@ import { UserProfileModal } from './components/UserProfileModal';
 import { SettingsModal } from './components/SettingsModal';
 import { SponsorshipBanner } from './components/SponsorshipBanner';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { VoiceCorrectionModal } from './components/VoiceCorrectionModal';
 
 const AppContent: React.FC = () => {
   const {
@@ -32,7 +33,11 @@ const AppContent: React.FC = () => {
     activeTab,
     toastMessage,
     settings,
-    audioState
+    audioState,
+    isVoiceCorrectionOpen,
+    setIsVoiceCorrectionOpen,
+    selectedSurahNum,
+    selectedAyahNum
   } = useQuran();
 
   const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
@@ -100,6 +105,15 @@ const AppContent: React.FC = () => {
       <AyahDetailModal />
       {showProfileModal && <UserProfileModal onClose={() => setShowProfileModal(false)} />}
       {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} />}
+      
+      {/* Voice Recitation Assistant & Live Correction Modal */}
+      {isVoiceCorrectionOpen && (
+        <VoiceCorrectionModal
+          initialSurahNum={selectedSurahNum}
+          initialAyahNum={selectedAyahNum}
+          onClose={() => setIsVoiceCorrectionOpen(false)}
+        />
+      )}
 
       {/* PWA Android / Mobile Install Banner */}
       <PWAInstallBanner />

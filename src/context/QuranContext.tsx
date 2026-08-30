@@ -7,13 +7,22 @@ import {
   KhatmahPlan,
   ReadingProgress,
   AppSettings,
-  PrayerTimeData
+  PrayerTimeData,
+  UserStats
 } from '../types/quran';
 import { SURAH_LIST } from '../data/surahList';
 import { RECITERS_LIST } from '../data/recitersData';
-import { calculatePrayerTimes, getNextPrayer, NextPrayerInfo, POPULAR_CITIES } from '../utils/prayerCalculator';
+import {
+  calculatePrayerTimes,
+  getNextPrayer,
+  NextPrayerInfo,
+  POPULAR_CITIES,
+  reverseGeocode,
+  fetchLiveAladhanTimings
+} from '../utils/prayerCalculator';
 import { getSurahDetail } from '../data/quranSampleData';
 import { getOfflineSurahBlobUrl, isSurahSavedOffline } from '../utils/offlineAudioStorage';
+import { playAdhanAudio, triggerPrayerNotification, playIslamicTone } from '../utils/adhanAudio';
 
 export type AppTab =
   | 'home'
@@ -68,9 +77,17 @@ interface QuranContextType {
   khatmahs: KhatmahPlan[];
   activeKhatmah: KhatmahPlan | null;
   createKhatmah: (plan: Omit<KhatmahPlan, 'id' | 'createdAt' | 'completedPages' | 'completedJuz' | 'status'>) => void;
+  createNewKhatmah: (title: string, targetDays: number) => void;
+  markKhatmahPageComplete: (pageNum: number) => void;
   togglePageCompleted: (khatmahId: string, pageNum: number) => void;
   toggleJuzCompleted: (khatmahId: string, juzNum: number) => void;
   deleteKhatmah: (id: string) => void;
+
+  // User Stats & Clean Counters
+  userStats: UserStats;
+  recordPageRead: (pageNum: number) => void;
+  incrementTasbeehCount: () => void;
+  resetAllCounters: () => void;
 
   // Audio Player
   audioState: AudioState;
@@ -100,6 +117,10 @@ interface QuranContextType {
   selectedAyahDetail: { surahNum: number; ayah: Ayah; surahMeta: SurahMeta } | null;
   setSelectedAyahDetail: (detail: { surahNum: number; ayah: Ayah; surahMeta: SurahMeta } | null) => void;
 
+  // Voice Recitation Correction Modal
+  isVoiceCorrectionOpen: boolean;
+  setIsVoiceCorrectionOpen: (open: boolean) => void;
+
   // Toast notifications
   toastMessage: string | null;
   showToast: (msg: string) => void;
@@ -117,6 +138,15 @@ const DEFAULT_SETTINGS: AppSettings = {
   prayerCalcMethod: 'Makkah',
   juristicMethod: 'shafii',
   adhanNotification: true,
+  adhanReminderMinutes: 0,
+  playAdhanAudioOnTime: true,
+  adhanNotificationPrayers: {
+    fajr: true,
+    dhuhr: true,
+    asr: true,
+    maghrib: true,
+    isha: true
+  },
   adhanMuadhin: 'makkah',
   locationCity: 'مكة المكرمة',
   lat: 21.4225,
@@ -125,11 +155,22 @@ const DEFAULT_SETTINGS: AppSettings = {
   showSponsorship: true
 };
 
+const DEFAULT_USER_STATS: UserStats = {
+  pagesRead: [],
+  totalPagesRead: 0,
+  streakDays: 0,
+  lastActiveDate: '',
+  listeningSeconds: 0,
+  completedKhatmahsCount: 0,
+  tasbeehTotalCount: 0,
+  correctionAttempts: 0,
+  correctionSuccessCount: 0
+};
+
 const QuranContext = createContext<QuranContextType | undefined>(undefined);
 
 export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [showSplash, setShowSplash] = useState<boolean>(() => {
-    // Show splash once per session
     const seen = sessionStorage.getItem('anwar_splash_seen');
     return !seen;
   });
@@ -139,6 +180,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedAyahNum, setSelectedAyahNum] = useState<number>(1);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [selectedAyahDetail, setSelectedAyahDetail] = useState<{ surahNum: number; ayah: Ayah; surahMeta: SurahMeta } | null>(null);
+  const [isVoiceCorrectionOpen, setIsVoiceCorrectionOpen] = useState<boolean>(false);
 
   // Load Settings
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -162,7 +204,66 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
-  // Load Reading Progress
+  // Clean Zeroed User Statistics
+  const [userStats, setUserStats] = useState<UserStats>(() => {
+    try {
+      const saved = localStorage.getItem('anwar_user_stats');
+      return saved ? { ...DEFAULT_USER_STATS, ...JSON.parse(saved) } : DEFAULT_USER_STATS;
+    } catch {
+      return DEFAULT_USER_STATS;
+    }
+  });
+
+  const saveStats = (stats: UserStats) => {
+    setUserStats(stats);
+    try {
+      localStorage.setItem('anwar_user_stats', JSON.stringify(stats));
+    } catch {
+      // ignore
+    }
+  };
+
+  const recordPageRead = (pageNum: number) => {
+    setUserStats(prev => {
+      const uniquePages = prev.pagesRead.includes(pageNum)
+        ? prev.pagesRead
+        : [...prev.pagesRead, pageNum];
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      let streak = prev.streakDays;
+      if (prev.lastActiveDate !== todayStr) {
+        streak = prev.streakDays + 1;
+      }
+
+      const updated: UserStats = {
+        ...prev,
+        pagesRead: uniquePages,
+        totalPagesRead: uniquePages.length,
+        streakDays: Math.max(1, streak),
+        lastActiveDate: todayStr
+      };
+      saveStats(updated);
+      return updated;
+    });
+  };
+
+  const incrementTasbeehCount = () => {
+    setUserStats(prev => {
+      const updated = { ...prev, tasbeehTotalCount: prev.tasbeehTotalCount + 1 };
+      saveStats(updated);
+      return updated;
+    });
+  };
+
+  const resetAllCounters = () => {
+    setUserStats(DEFAULT_USER_STATS);
+    localStorage.removeItem('anwar_user_stats');
+    localStorage.removeItem('anwar_khatmahs');
+    setKhatmahs([]);
+    showToast('تم تصفير كافة العدادات والإحصائيات بنجاح 🔄');
+  };
+
+  // Load Reading Progress - Starts fresh at Al-Fatihah, Page 1
   const [readingProgress, setReadingProgress] = useState<ReadingProgress>(() => {
     try {
       const saved = localStorage.getItem('anwar_reading_progress');
@@ -199,6 +300,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       lastUpdated: Date.now()
     };
     setReadingProgress(updated);
+    recordPageRead(page);
     try {
       localStorage.setItem('anwar_reading_progress', JSON.stringify(updated));
     } catch {
@@ -206,36 +308,11 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Load Bookmarks
+  // Load Bookmarks - Clean empty array by default
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(() => {
     try {
       const saved = localStorage.getItem('anwar_bookmarks');
-      return saved
-        ? JSON.parse(saved)
-        : [
-            {
-              id: 'bm_1',
-              surahNumber: 1,
-              surahName: 'الفاتحة',
-              ayahNumberInSurah: 1,
-              ayahGlobalNumber: 1,
-              page: 1,
-              juz: 1,
-              textPreview: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-              timestamp: Date.now()
-            },
-            {
-              id: 'bm_2',
-              surahNumber: 67,
-              surahName: 'الملك',
-              ayahNumberInSurah: 1,
-              ayahGlobalNumber: 5242,
-              page: 562,
-              juz: 29,
-              textPreview: 'تَبَارَكَ الَّذِي بِيَدِهِ الْمُلْكُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ',
-              timestamp: Date.now() - 86400000
-            }
-          ];
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
@@ -276,25 +353,11 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return bookmarks.some(b => b.surahNumber === surahNum && b.ayahNumberInSurah === ayahNum);
   };
 
-  // Khatmahs
+  // Khatmahs - Clean empty array by default (0% initial state)
   const [khatmahs, setKhatmahs] = useState<KhatmahPlan[]>(() => {
     try {
       const saved = localStorage.getItem('anwar_khatmahs');
-      return saved
-        ? JSON.parse(saved)
-        : [
-            {
-              id: 'khatmah_demo_1',
-              title: 'ختمة رمضان المبارك',
-              startDate: new Date().toISOString().split('T')[0],
-              targetDays: 30,
-              dailyPagesTarget: 20,
-              completedPages: Array.from({ length: 42 }, (_, i) => i + 1), // 42 pages completed
-              completedJuz: [1, 2],
-              status: 'active',
-              createdAt: Date.now() - 3600 * 24 * 2 * 1000
-            }
-          ];
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
@@ -325,6 +388,29 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showToast(`تم إنشاء "${plan.title}" بنجاح! وفقك الله لختم كتابه.`);
   };
 
+  const createNewKhatmah = (title: string, targetDays: number) => {
+    createKhatmah({
+      title,
+      targetDays,
+      dailyPagesTarget: Math.ceil(604 / (targetDays || 30)),
+      startDate: new Date().toISOString().split('T')[0]
+    });
+  };
+
+  const markKhatmahPageComplete = (pageNum: number) => {
+    if (!activeKhatmah) {
+      // Create a default initial khatmah if none exists
+      createKhatmah({
+        title: 'ختمة القرآن الكريم',
+        startDate: new Date().toISOString().split('T')[0],
+        targetDays: 30,
+        dailyPagesTarget: 20
+      });
+      return;
+    }
+    togglePageCompleted(activeKhatmah.id, pageNum);
+  };
+
   const togglePageCompleted = (khatmahId: string, pageNum: number) => {
     setKhatmahs(prev => {
       const updated = prev.map(k => {
@@ -332,6 +418,10 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const exists = k.completedPages.includes(pageNum);
         const newPages = exists ? k.completedPages.filter(p => p !== pageNum) : [...k.completedPages, pageNum];
         const isComplete = newPages.length >= 604;
+        if (isComplete && k.status !== 'completed') {
+          showToast('مبارك! تم ختم القرآن الكريم كاملاً 🎉 تقبل الله طاعتكم');
+          setUserStats(s => ({ ...s, completedKhatmahsCount: s.completedKhatmahsCount + 1 }));
+        }
         return {
           ...k,
           completedPages: newPages,
@@ -402,7 +492,6 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   });
 
-  // Helper to load and play audio with automatic multi-CDN fallback
   const startAudioPlayback = (urls: string[], speed: number) => {
     if (!audioRef.current || urls.length === 0) return;
     
@@ -423,7 +512,6 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         })
         .catch(err => {
           console.warn('Audio play attempt error:', err);
-          // Try next fallback immediately
           if (fallbackUrlsRef.current.length > 0) {
             const nextUrl = fallbackUrlsRef.current.shift()!;
             audio.src = nextUrl;
@@ -441,22 +529,23 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Initialize Audio Element
   useEffect(() => {
     const audio = new Audio();
     audio.preload = 'auto';
     audio.volume = 1.0;
     audioRef.current = audio;
 
-    const onTimeUpdate = () => {
+    const handleTimeUpdate = () => {
       setAudioState(prev => ({
         ...prev,
         currentTime: audio.currentTime,
-        duration: audio.duration || prev.duration
+        duration: audio.duration || 0
       }));
+      // Record listening stats
+      setUserStats(s => ({ ...s, listeningSeconds: s.listeningSeconds + 1 }));
     };
 
-    const onLoadedMetadata = () => {
+    const handleLoadedMetadata = () => {
       setAudioState(prev => ({
         ...prev,
         duration: audio.duration || 0,
@@ -464,173 +553,77 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }));
     };
 
-    const onCanPlay = () => {
-      setAudioState(prev => ({ ...prev, isLoading: false }));
-    };
-
-    const onWaiting = () => {
-      setAudioState(prev => ({ ...prev, isLoading: true }));
-    };
-
-    const onPlay = () => {
-      isPlayingRef.current = true;
-      setAudioState(prev => ({ ...prev, isPlaying: true, isLoading: false }));
-    };
-
-    const onPause = () => {
-      isPlayingRef.current = false;
-      setAudioState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
-    };
-
-    const onError = () => {
-      console.warn('Audio element error encountered on:', audio.src);
-      if (fallbackUrlsRef.current.length > 0) {
-        const nextUrl = fallbackUrlsRef.current.shift()!;
-        console.log('Switching to fallback audio source:', nextUrl);
-        audio.src = nextUrl;
-        audio.load();
-        audio.play().catch(() => {});
-      } else {
-        isPlayingRef.current = false;
-        setAudioState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
-      }
-    };
-    
-    const onEnded = () => {
-      setAudioState(current => {
-        if (current.repeatMode === 'ayah') {
-          audio.currentTime = 0;
-          audio.play().catch(() => {});
-          return current;
-        }
-
-        if (current.audioMode === 'ayah') {
-          // Play next Ayah in Surah
-          const sMeta = SURAH_LIST.find(s => s.number === current.surahNumber);
-          if (sMeta && current.ayahNumber < sMeta.numberOfAyahs) {
-            const nextAyah = current.ayahNumber + 1;
-            const urls = current.reciter.ayahAudioUrls
-              ? current.reciter.ayahAudioUrls(current.surahNumber, nextAyah)
-              : [current.reciter.ayahAudioUrlPattern(current.surahNumber, nextAyah)];
-            
-            startAudioPlayback(urls, current.playbackSpeed);
-            return {
-              ...current,
-              ayahNumber: nextAyah,
-              isPlaying: true
-            };
-          } else if (current.repeatMode === 'surah') {
-            const urls = current.reciter.ayahAudioUrls
-              ? current.reciter.ayahAudioUrls(current.surahNumber, 1)
-              : [current.reciter.ayahAudioUrlPattern(current.surahNumber, 1)];
-            
-            startAudioPlayback(urls, current.playbackSpeed);
-            return {
-              ...current,
-              ayahNumber: 1,
-              isPlaying: true
-            };
+    const handleEnded = () => {
+      setAudioState(prev => {
+        if (prev.repeatMode === 'ayah' && prev.audioMode === 'ayah') {
+          playAyahAudio(prev.surahNumber, prev.ayahNumber, prev.reciter.id);
+          return prev;
+        } else if (prev.repeatMode === 'surah') {
+          if (prev.audioMode === 'surah') {
+            playSurahFullAudio(prev.surahNumber, prev.reciter.id);
           } else {
-            // Surah finished
-            return {
-              ...current,
-              isPlaying: false,
-              currentTime: 0
-            };
+            playAyahAudio(prev.surahNumber, 1, prev.reciter.id);
           }
-        } else {
-          // Full Surah Mode ended
-          if (current.repeatMode === 'surah') {
-            audio.currentTime = 0;
-            audio.play().catch(() => {});
-            return current;
-          } else if (current.surahNumber < 114) {
-            const nextSurah = current.surahNumber + 1;
-            const urls = current.reciter.surahAudioUrls
-              ? current.reciter.surahAudioUrls(nextSurah)
-              : [current.reciter.surahAudioUrlPattern(nextSurah)];
-            startAudioPlayback(urls, current.playbackSpeed);
-            return {
-              ...current,
-              surahNumber: nextSurah,
-              ayahNumber: 1,
-              isPlaying: true
-            };
-          } else {
-            return {
-              ...current,
-              isPlaying: false,
-              currentTime: 0
-            };
+          return prev;
+        } else if (prev.audioMode === 'ayah') {
+          const sMeta = SURAH_LIST.find(s => s.number === prev.surahNumber);
+          if (sMeta && prev.ayahNumber < sMeta.numberOfAyahs) {
+            playAyahAudio(prev.surahNumber, prev.ayahNumber + 1, prev.reciter.id);
+          } else if (prev.surahNumber < 114) {
+            setSelectedSurahNum(prev.surahNumber + 1);
+            playAyahAudio(prev.surahNumber + 1, 1, prev.reciter.id);
           }
         }
+        return { ...prev, isPlaying: false, currentTime: 0 };
       });
     };
 
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.addEventListener('loadedmetadata', onLoadedMetadata);
-    audio.addEventListener('canplay', onCanPlay);
-    audio.addEventListener('waiting', onWaiting);
-    audio.addEventListener('play', onPlay);
-    audio.addEventListener('pause', onPause);
-    audio.addEventListener('error', onError);
-    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
 
     return () => {
       audio.pause();
-      audio.removeEventListener('timeupdate', onTimeUpdate);
-      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
-      audio.removeEventListener('canplay', onCanPlay);
-      audio.removeEventListener('waiting', onWaiting);
-      audio.removeEventListener('play', onPlay);
-      audio.removeEventListener('pause', onPause);
-      audio.removeEventListener('error', onError);
-      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
     };
   }, []);
 
-  const playSurahAudio = async (surahNum: number, reciterId?: string) => {
-    const targetReciter = reciterId ? (RECITERS_LIST.find(r => r.id === reciterId) || audioState.reciter) : audioState.reciter;
-    
-    // Check if offline cached audio exists first
-    const offlineBlobUrl = await getOfflineSurahBlobUrl(targetReciter.id, surahNum);
-
-    // In Quran reading experience, play verse-by-verse starting from Ayah 1 (or current ayah) with real-time text highlight
-    const ayahUrls = targetReciter.ayahAudioUrls
-      ? targetReciter.ayahAudioUrls(surahNum, 1)
-      : [targetReciter.ayahAudioUrlPattern(surahNum, 1)];
-
-    const finalUrls = offlineBlobUrl ? [offlineBlobUrl, ...ayahUrls] : ayahUrls;
-
-    startAudioPlayback(finalUrls, audioState.playbackSpeed);
-
-    setAudioState(prev => ({
-      ...prev,
-      isPlaying: true,
-      surahNumber: surahNum,
-      ayahNumber: 1,
-      reciter: targetReciter,
-      audioMode: 'ayah',
-      currentTime: 0
-    }));
-
-    const sMeta = SURAH_LIST.find(s => s.number === surahNum);
-    showToast(`تلاوة سورة ${sMeta?.name || surahNum} بصوت ${targetReciter.name} 🎧`);
+  const playSurahAudio = (surahNum: number, reciterId?: string) => {
+    setSelectedSurahNum(surahNum);
+    setSelectedAyahNum(1);
+    playAyahAudio(surahNum, 1, reciterId);
   };
 
   const playSurahFullAudio = async (surahNum: number, reciterId?: string) => {
     const targetReciter = reciterId ? (RECITERS_LIST.find(r => r.id === reciterId) || audioState.reciter) : audioState.reciter;
-    
-    // Check if offline cached audio exists first
-    const offlineBlobUrl = await getOfflineSurahBlobUrl(targetReciter.id, surahNum);
+    setSelectedSurahNum(surahNum);
 
-    const fullUrls = targetReciter.surahAudioUrls
+    const isOffline = await isSurahSavedOffline(targetReciter.id, surahNum);
+    if (isOffline) {
+      const offlineUrl = await getOfflineSurahBlobUrl(targetReciter.id, surahNum);
+      if (offlineUrl) {
+        startAudioPlayback([offlineUrl], audioState.playbackSpeed);
+        setAudioState(prev => ({
+          ...prev,
+          isPlaying: true,
+          surahNumber: surahNum,
+          ayahNumber: 1,
+          reciter: targetReciter,
+          audioMode: 'surah',
+          currentTime: 0
+        }));
+        showToast(`تشغيل سورة ${SURAH_LIST.find(s => s.number === surahNum)?.name} من التخزين بدون إنترنت ⚡`);
+        return;
+      }
+    }
+
+    const urls = targetReciter.surahAudioUrls
       ? targetReciter.surahAudioUrls(surahNum)
       : [targetReciter.surahAudioUrlPattern(surahNum)];
 
-    const finalUrls = offlineBlobUrl ? [offlineBlobUrl, ...fullUrls] : fullUrls;
-
-    startAudioPlayback(finalUrls, audioState.playbackSpeed);
+    startAudioPlayback(urls, audioState.playbackSpeed);
 
     setAudioState(prev => ({
       ...prev,
@@ -641,12 +634,12 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       audioMode: 'surah',
       currentTime: 0
     }));
-
-    const sMeta = SURAH_LIST.find(s => s.number === surahNum);
-    showToast(`استماع كامل لسورة ${sMeta?.name || surahNum} بصوت ${targetReciter.name} 🎧`);
   };
 
   const playAyahAudio = (surahNum: number, ayahNum: number, reciterId?: string) => {
+    setSelectedSurahNum(surahNum);
+    setSelectedAyahNum(ayahNum);
+
     const targetReciter = reciterId ? (RECITERS_LIST.find(r => r.id === reciterId) || audioState.reciter) : audioState.reciter;
     const urls = targetReciter.ayahAudioUrls
       ? targetReciter.ayahAudioUrls(surahNum, ayahNum)
@@ -789,9 +782,12 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return getNextPrayer(prayerTimes);
   });
 
-  // Live prayer countdown ticker
+  // Track notified prayers to avoid duplicate alerts within the same prayer window
+  const lastNotifiedRef = useRef<string>('');
+
+  // Live prayer countdown & notification ticker
   useEffect(() => {
-    const interval = setInterval(() => {
+    const updateTimes = () => {
       const calculated = calculatePrayerTimes(
         new Date(),
         settings.lat,
@@ -800,30 +796,108 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         settings.juristicMethod
       );
       setPrayerTimes(calculated);
-      setNextPrayer(getNextPrayer(calculated));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [settings.lat, settings.lng, settings.prayerCalcMethod, settings.juristicMethod]);
+      const nextInfo = getNextPrayer(calculated);
+      setNextPrayer(nextInfo);
 
-  const refreshLocation = () => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          const { latitude, longitude } = pos.coords;
-          // Find nearest city or generic name
+      // Check for Adhan notification
+      if (settings.adhanNotification) {
+        const remainingSec = nextInfo.remainingSeconds;
+        const prayerKey = nextInfo.name as keyof typeof settings.adhanNotificationPrayers;
+        const isPrayerEnabled = settings.adhanNotificationPrayers?.[prayerKey] ?? true;
+
+        if (isPrayerEnabled) {
+          // Pre-adhan reminder (e.g. 15 or 10 min before)
+          if (settings.adhanReminderMinutes > 0) {
+            const reminderSec = settings.adhanReminderMinutes * 60;
+            const reminderKey = `reminder_${nextInfo.name}_${calculated.date}`;
+            if (remainingSec <= reminderSec && remainingSec > reminderSec - 60 && lastNotifiedRef.current !== reminderKey) {
+              lastNotifiedRef.current = reminderKey;
+              triggerPrayerNotification(
+                `اقترب موعد صلاة ${nextInfo.nameArabic} 🕌`,
+                `متبقي ${settings.adhanReminderMinutes} دقائق على رفع أذان صلاة ${nextInfo.nameArabic}`
+              );
+              playIslamicTone();
+            }
+          }
+
+          // Exact Adhan Time (0 remaining seconds or right at the minute)
+          const adhanKey = `adhan_${nextInfo.name}_${calculated.date}`;
+          if (remainingSec <= 2 && remainingSec >= 0 && lastNotifiedRef.current !== adhanKey) {
+            lastNotifiedRef.current = adhanKey;
+            triggerPrayerNotification(
+              `حان الآن موعد أذان صلاة ${nextInfo.nameArabic} 🕌`,
+              `حي على الصلاة، حي على الفلاح - تقبل الله طاعتكم`
+            );
+            if (settings.playAdhanAudioOnTime) {
+              playAdhanAudio(settings.adhanMuadhin);
+            }
+          }
+        }
+      }
+    };
+
+    updateTimes();
+    const interval = setInterval(updateTimes, 1000);
+    return () => clearInterval(interval);
+  }, [
+    settings.lat,
+    settings.lng,
+    settings.prayerCalcMethod,
+    settings.juristicMethod,
+    settings.adhanNotification,
+    settings.adhanReminderMinutes,
+    settings.playAdhanAudioOnTime,
+    settings.adhanMuadhin,
+    settings.adhanNotificationPrayers
+  ]);
+
+  // Automatic GPS Geolocation & Live Reverse Geocoding
+  const refreshLocation = async () => {
+    if (!('geolocation' in navigator)) {
+      showToast('خاصية تحديد الموقع غير مدعومة في متصفحك.');
+      return;
+    }
+
+    showToast('جاري تحديد موقعك الجغرافي وحساب المواقيت بدقة 📍...');
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const geoResult = await reverseGeocode(latitude, longitude);
+          const liveTimings = await fetchLiveAladhanTimings(latitude, longitude, settings.prayerCalcMethod);
+
+          const locationName = geoResult.fullName || geoResult.city || 'الموقع الحالي (GPS)';
+
           updateSettings({
             lat: latitude,
             lng: longitude,
-            locationCity: 'الموقع الحالي (GPS)',
+            locationCity: locationName,
             autoDetectLocation: true
           });
-          showToast('تم تحديد الموقع الجغرافي وحساب مواقيت الصلاة بدقة 🕌');
-        },
-        () => {
-          showToast('تعذر الوصول للموقع تلقائياً، يمكنك اختيار المدينة يدوياً.');
+
+          if (liveTimings) {
+            setPrayerTimes(liveTimings);
+            setNextPrayer(getNextPrayer(liveTimings));
+          } else {
+            const calculated = calculatePrayerTimes(new Date(), latitude, longitude, settings.prayerCalcMethod, settings.juristicMethod);
+            setPrayerTimes(calculated);
+            setNextPrayer(getNextPrayer(calculated));
+          }
+
+          showToast(`تم تحديد موقعك: ${locationName} وضبط مواقيت الصلاة بدقة 🕌`);
+        } catch (e) {
+          const calculated = calculatePrayerTimes(new Date(), latitude, longitude, settings.prayerCalcMethod, settings.juristicMethod);
+          setPrayerTimes(calculated);
+          setNextPrayer(getNextPrayer(calculated));
+          showToast('تم تحديد الإحداثيات وتحديث مواقيت الصلاة 📍');
         }
-      );
-    }
+      },
+      err => {
+        console.warn('Geolocation failed:', err);
+        showToast('يرجى السماح بالوصول للموقع لتحديد مواقيت الصلاة والقبلة تلقائياً.');
+      },
+      { enableHighAccuracy: true, timeout: 12000 }
+    );
   };
 
   const showToast = (msg: string) => {
@@ -833,7 +907,6 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, 3800);
   };
 
-  // Automatically fetch initial reading progress surah
   useEffect(() => {
     getSurahDetail(readingProgress.lastSurahNumber).catch(() => {});
   }, [readingProgress.lastSurahNumber]);
@@ -861,9 +934,15 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         khatmahs,
         activeKhatmah,
         createKhatmah,
+        createNewKhatmah,
+        markKhatmahPageComplete,
         togglePageCompleted,
         toggleJuzCompleted,
         deleteKhatmah,
+        userStats,
+        recordPageRead,
+        incrementTasbeehCount,
+        resetAllCounters,
         audioState,
         playSurahAudio,
         playSurahFullAudio,
@@ -884,6 +963,8 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateSettings,
         selectedAyahDetail,
         setSelectedAyahDetail,
+        isVoiceCorrectionOpen,
+        setIsVoiceCorrectionOpen,
         toastMessage,
         showToast
       }}

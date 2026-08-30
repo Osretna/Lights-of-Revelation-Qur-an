@@ -9,7 +9,8 @@ import {
   Headphones,
   Moon,
   Sun,
-  MapPin
+  MapPin,
+  Mic
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 
@@ -34,10 +35,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     audioState,
     togglePlayPause,
     settings,
-    updateSettings
+    updateSettings,
+    setIsVoiceCorrectionOpen
   } = useQuran();
-
-  const [showLocationMenu, setShowLocationMenu] = useState(false);
 
   const toggleTheme = () => {
     const nextTheme = settings.theme === 'emerald' ? 'dark' : settings.theme === 'dark' ? 'sepia' : 'emerald';
@@ -86,12 +86,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-1.5 sm:gap-2.5">
+            {/* Live Recitation Correction Button */}
+            <button
+              id="nav-voice-correction-btn"
+              onClick={() => setIsVoiceCorrectionOpen(true)}
+              title="مصحح التلاوة والمساعد الصوتي الذكي"
+              className="flex items-center gap-1.5 bg-[#d4af37] hover:bg-[#c19b2e] text-[#042118] font-bold px-3 py-2 rounded-xl text-xs shadow-md transition-all cursor-pointer"
+            >
+              <Mic className="w-4 h-4" />
+              <span className="hidden sm:inline">مصحح التلاوة</span>
+            </button>
+
             {/* Search Button */}
             <button
               id="nav-search-btn"
               onClick={onOpenSearch}
               title="البحث في القرآن الكريم"
-              className="p-2 sm:p-2.5 rounded-xl text-[#d4af37] hover:text-white hover:bg-[#084d32] border border-transparent hover:border-[#d4af37]/40 transition-all"
+              className="p-2 sm:p-2.5 rounded-xl text-[#d4af37] hover:text-white hover:bg-[#084d32] border border-transparent hover:border-[#d4af37]/40 transition-all cursor-pointer"
             >
               <Search className="w-5 h-5" />
             </button>
@@ -102,7 +113,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 id="nav-audio-btn"
                 onClick={togglePlayPause}
                 title="مشغل التلاوة الصوتية"
-                className={`p-2 sm:p-2.5 rounded-xl border transition-all flex items-center gap-1.5 ${
+                className={`p-2 sm:p-2.5 rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
                   audioState.isPlaying
                     ? 'bg-[#d4af37] text-[#042118] border-[#d4af37] font-bold shadow-[0_0_10px_rgba(212,175,55,0.4)]'
                     : 'text-[#d4af37] hover:bg-[#084d32] border-[#084d32]'
@@ -117,7 +128,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="nav-bookmarks-btn"
               onClick={onOpenBookmarks}
               title="العلامات المرجعية المحفوظة"
-              className="p-2 sm:p-2.5 rounded-xl text-[#d4af37] hover:text-white hover:bg-[#084d32] border border-transparent hover:border-[#d4af37]/40 transition-all"
+              className="p-2 sm:p-2.5 rounded-xl text-[#d4af37] hover:text-white hover:bg-[#084d32] border border-transparent hover:border-[#d4af37]/40 transition-all cursor-pointer"
             >
               <Bookmark className="w-5 h-5" />
             </button>
@@ -127,7 +138,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="nav-theme-btn"
               onClick={toggleTheme}
               title="تبديل المظهر"
-              className="p-2 sm:p-2.5 rounded-xl text-[#d4af37] hover:text-white hover:bg-[#084d32] border border-transparent hover:border-[#d4af37]/40 transition-all hidden sm:block"
+              className="p-2 sm:p-2.5 rounded-xl text-[#d4af37] hover:text-white hover:bg-[#084d32] border border-transparent hover:border-[#d4af37]/40 transition-all hidden sm:block cursor-pointer"
             >
               {settings.theme === 'dark' ? (
                 <Moon className="w-5 h-5 text-[#d4af37]" />
@@ -141,7 +152,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="nav-profile-btn"
               onClick={onOpenProfile}
               title="الملف الشخصي والإحصائيات"
-              className="p-2 sm:p-2.5 rounded-xl text-[#d4af37] hover:text-white hover:bg-[#084d32] border border-transparent hover:border-[#d4af37]/40 transition-all"
+              className="p-2 sm:p-2.5 rounded-xl text-[#d4af37] hover:text-white hover:bg-[#084d32] border border-transparent hover:border-[#d4af37]/40 transition-all cursor-pointer"
             >
               <User className="w-5 h-5" />
             </button>
@@ -151,7 +162,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="nav-settings-btn"
               onClick={onOpenSettings}
               title="الإعدادات العامة"
-              className="p-2 sm:p-2.5 rounded-xl text-[#d4af37] hover:text-white hover:bg-[#084d32] border border-transparent hover:border-[#d4af37]/40 transition-all"
+              className="p-2 sm:p-2.5 rounded-xl text-[#d4af37] hover:text-white hover:bg-[#084d32] border border-transparent hover:border-[#d4af37]/40 transition-all cursor-pointer"
             >
               <SettingsIcon className="w-5 h-5" />
             </button>
@@ -161,7 +172,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="nav-admin-btn"
               onClick={() => setActiveTab(activeTab === 'admin' ? 'home' : 'admin')}
               title="لوحة تحكم الإدارة"
-              className={`p-2 sm:p-2.5 rounded-xl border transition-all ${
+              className={`p-2 sm:p-2.5 rounded-xl border transition-all cursor-pointer ${
                 activeTab === 'admin'
                   ? 'bg-[#d4af37] text-[#042118] font-bold border-[#d4af37]'
                   : 'text-[#d4af37]/60 hover:text-[#d4af37] hover:bg-[#084d32] border-transparent'

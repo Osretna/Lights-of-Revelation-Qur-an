@@ -1,5 +1,5 @@
 // Service Worker for "أنوار الوحي" Quran Application
-const CACHE_NAME = 'anwar-alwahy-v1.3.0';
+const CACHE_NAME = 'anwar-alwahy-v1.4.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -39,6 +39,49 @@ self.addEventListener('activate', (event) => {
         })
       );
     }).then(() => self.clients.claim())
+  );
+});
+
+// Handle Background Push & Scheduled Notifications
+self.addEventListener('push', (event) => {
+  let data = { title: 'حان موعد الصلاة 🕌', body: 'حي على الصلاة، حي على الفلاح', icon: '/icon-192.png' };
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data.body = event.data.text();
+    }
+  }
+  const options = {
+    body: data.body,
+    icon: data.icon || '/icon-192.png',
+    badge: '/icon-96.png',
+    vibrate: [200, 100, 200, 100, 300],
+    data: { url: '/' },
+    actions: [
+      { action: 'open', title: 'فتح التطبيق' },
+      { action: 'close', title: 'إغلاق' }
+    ]
+  };
+  event.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+// Notification Click Event - Focus or open the app
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  if (event.action === 'close') return;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
   );
 });
 

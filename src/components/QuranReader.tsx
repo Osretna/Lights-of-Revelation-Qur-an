@@ -18,7 +18,8 @@ import {
   SlidersHorizontal,
   Volume2,
   Check,
-  Loader2
+  Loader2,
+  Mic
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 import { SURAH_LIST, JUZ_LIST } from '../data/surahList';
@@ -44,6 +45,7 @@ export const QuranReader: React.FC = () => {
     settings,
     updateSettings,
     setSelectedAyahDetail,
+    setIsVoiceCorrectionOpen,
     showToast
   } = useQuran();
 
@@ -295,6 +297,19 @@ export const QuranReader: React.FC = () => {
             );
           })()}
 
+          {/* Live Recitation Correction Button */}
+          <button
+            onClick={() => {
+              setSelectedAyahNum(selectedAyahNum || 1);
+              setIsVoiceCorrectionOpen(true);
+            }}
+            title="مصحح التلاوة الصوتي الذكي"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#d4af37]/20 hover:bg-[#d4af37] text-[#d4af37] hover:text-[#042118] border border-[#d4af37]/40 transition-all cursor-pointer"
+          >
+            <Mic className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">صحح تلاوتي</span>
+          </button>
+
           {/* Appearance Modal trigger */}
           <button
             onClick={() => setShowAppearanceMenu(!showAppearanceMenu)}
@@ -513,6 +528,17 @@ export const QuranReader: React.FC = () => {
                         >
                           <BookMarked className="w-3.5 h-3.5" />
                           <span>تفسير</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedAyahNum(ayah.numberInSurah);
+                            setIsVoiceCorrectionOpen(true);
+                          }}
+                          title="تصحيح تلاوة هذه الآية بصوتك"
+                          className="hover:text-amber-400 p-1 flex items-center gap-1 font-sans text-[11px]"
+                        >
+                          <Mic className="w-3.5 h-3.5" />
+                          <span>صحح</span>
                         </button>
                         <button
                           onClick={() => handleToggleBookmark(ayah)}

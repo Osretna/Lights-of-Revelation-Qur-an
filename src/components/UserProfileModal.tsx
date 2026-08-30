@@ -15,13 +15,14 @@ import {
   Sparkles,
   Flame,
   Cloud,
-  CloudCheck,
   LogIn,
   LogOut,
-  RefreshCw
+  RefreshCw,
+  RotateCcw,
+  Sparkle
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
-import { auth, googleProvider, signInWithPopup, signOut, signInAnonymously, User } from '../services/firebase';
+import { auth, googleProvider, signInWithPopup, signOut, User } from '../services/firebase';
 import { syncUserProfileToFirebase, syncBookmarkToFirebase, syncKhatmahToFirebase } from '../services/firebaseSync';
 
 interface UserProfileModalProps {
@@ -39,6 +40,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
     readingProgress,
     activeKhatmah,
     settings,
+    userStats,
+    resetAllCounters,
     showToast
   } = useQuran();
 
@@ -66,6 +69,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
       bookmarks,
       readingProgress,
       activeKhatmah,
+      userStats,
       date: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -99,7 +103,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
     }
     setIsSyncing(true);
     try {
-      await syncUserProfileToFirebase(currentUser, readingProgress, settings, 0);
+      await syncUserProfileToFirebase(currentUser, readingProgress, settings, userStats.totalPagesRead);
       for (const bm of bookmarks) {
         await syncBookmarkToFirebase(currentUser, bm);
       }
@@ -115,67 +119,73 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
     }
   };
 
+  const handleResetAll = () => {
+    if (window.confirm('هل أنت متأكد من رغبتك في تصفير وإعادة تعيين كافة العدادات والإحصائيات إلى الصفر؟')) {
+      resetAllCounters();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white dark:bg-emerald-950 border border-amber-500/40 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden my-auto"
+        className="bg-white dark:bg-[#042118] border-2 border-[#d4af37]/40 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden my-auto"
       >
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-emerald-800 flex justify-between items-center bg-gradient-to-r from-emerald-950 to-emerald-900 text-amber-50">
+        <div className="p-4 sm:p-5 border-b border-[#d4af37]/25 flex justify-between items-center bg-gradient-to-r from-[#063321] to-[#042118] text-[#f5f2ed]">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30 flex items-center justify-center font-bold">
               <UserIcon className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base sm:text-lg text-amber-200">
+              <h3 className="font-serif font-bold text-base sm:text-lg text-[#d4af37]">
                 {currentUser?.displayName || 'الملف الشخصي والإحصائيات'}
               </h3>
-              <p className="text-xs text-amber-200/70">
+              <p className="text-xs text-[#f5f2ed]/70">
                 {currentUser ? `متصل سحابياً: ${currentUser.email || 'حساب زائر'}` : 'قارئ القرآن الكريم • حفظ الله لك وقتك'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-emerald-900 text-amber-300 hover:bg-emerald-800"
+            className="p-1.5 rounded-xl bg-[#084d32] text-[#d4af37] hover:bg-[#063321] cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Sub Tabs */}
-        <div className="flex bg-slate-100 dark:bg-emerald-900/40 p-1.5 border-b border-slate-200 dark:border-emerald-800 text-xs font-semibold overflow-x-auto scrollbar-none">
+        <div className="flex bg-slate-100 dark:bg-[#063321] p-1.5 border-b border-slate-200 dark:border-[#d4af37]/20 text-xs font-semibold overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveSubTab('stats')}
-            className={`flex-1 min-w-[100px] py-2 rounded-xl transition-all ${
-              activeSubTab === 'stats' ? 'bg-amber-500 text-emerald-950 font-bold' : 'text-slate-600 dark:text-amber-200'
+            className={`flex-1 min-w-[100px] py-2 rounded-xl transition-all cursor-pointer ${
+              activeSubTab === 'stats' ? 'bg-[#d4af37] text-[#042118] font-bold' : 'text-slate-600 dark:text-[#f5f2ed]'
             }`}
           >
-            الإحصائيات
+            الإحصائيات والعدادات
           </button>
           <button
             onClick={() => setActiveSubTab('bookmarks')}
-            className={`flex-1 min-w-[100px] py-2 rounded-xl transition-all ${
-              activeSubTab === 'bookmarks' ? 'bg-amber-500 text-emerald-950 font-bold' : 'text-slate-600 dark:text-amber-200'
+            className={`flex-1 min-w-[100px] py-2 rounded-xl transition-all cursor-pointer ${
+              activeSubTab === 'bookmarks' ? 'bg-[#d4af37] text-[#042118] font-bold' : 'text-slate-600 dark:text-[#f5f2ed]'
             }`}
           >
             العلامات ({bookmarks.length})
           </button>
           <button
             onClick={() => setActiveSubTab('cloud')}
-            className={`flex-1 min-w-[120px] py-2 rounded-xl transition-all ${
-              activeSubTab === 'cloud' ? 'bg-amber-500 text-emerald-950 font-bold' : 'text-slate-600 dark:text-amber-200'
+            className={`flex-1 min-w-[120px] py-2 rounded-xl transition-all cursor-pointer ${
+              activeSubTab === 'cloud' ? 'bg-[#d4af37] text-[#042118] font-bold' : 'text-slate-600 dark:text-[#f5f2ed]'
             }`}
           >
             السحابة (Firebase)
           </button>
           <button
             onClick={() => setActiveSubTab('backup')}
-            className={`flex-1 min-w-[100px] py-2 rounded-xl transition-all ${
-              activeSubTab === 'backup' ? 'bg-amber-500 text-emerald-950 font-bold' : 'text-slate-600 dark:text-amber-200'
+            className={`flex-1 min-w-[100px] py-2 rounded-xl transition-all cursor-pointer ${
+              activeSubTab === 'backup' ? 'bg-[#d4af37] text-[#042118] font-bold' : 'text-slate-600 dark:text-[#f5f2ed]'
             }`}
           >
             النسخ المحلي
@@ -183,41 +193,117 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
         </div>
 
         {/* Body Container */}
-        <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4">
+        <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-5">
+          {/* STATS SUBTAB */}
+          {activeSubTab === 'stats' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-[#063321] border border-amber-200 dark:border-[#d4af37]/30 text-center">
+                  <Flame className="w-6 h-6 text-amber-500 mx-auto mb-1" />
+                  <span className="text-2xl font-bold font-mono text-slate-800 dark:text-[#d4af37]">
+                    {userStats.streakDays}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-[#f5f2ed]/70 block">
+                    أيام تتابع القراءة
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-[#063321] border border-emerald-200 dark:border-[#d4af37]/30 text-center">
+                  <BookOpen className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
+                  <span className="text-2xl font-bold font-mono text-slate-800 dark:text-[#d4af37]">
+                    {userStats.totalPagesRead}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-[#f5f2ed]/70 block">
+                    صفحة مقروءة
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-teal-50 dark:bg-[#063321] border border-teal-200 dark:border-[#d4af37]/30 text-center">
+                  <Headphones className="w-6 h-6 text-teal-600 dark:text-teal-400 mx-auto mb-1" />
+                  <span className="text-2xl font-bold font-mono text-slate-800 dark:text-[#d4af37]">
+                    {Math.floor(userStats.listeningSeconds / 3600)}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-[#f5f2ed]/70 block">
+                    ساعة استماع
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-[#063321] border border-indigo-200 dark:border-[#d4af37]/30 text-center">
+                  <Award className="w-6 h-6 text-indigo-600 dark:text-indigo-400 mx-auto mb-1" />
+                  <span className="text-2xl font-bold font-mono text-slate-800 dark:text-[#d4af37]">
+                    {userStats.completedKhatmahsCount}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-[#f5f2ed]/70 block">
+                    ختمة مكتملة
+                  </span>
+                </div>
+              </div>
+
+              {/* Tasbeeh Counter Card */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#063321] border border-slate-200 dark:border-[#d4af37]/25 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 text-[#d4af37]" />
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-[#f5f2ed]">
+                      إجمالي التسبيحات المنجزة:
+                    </h4>
+                    <span className="text-[11px] text-slate-500 dark:text-[#f5f2ed]/60">
+                      يتم احتسابها تلقائياً عند استخدام السبحة الإلكترونية
+                    </span>
+                  </div>
+                </div>
+                <span className="font-mono text-xl font-bold text-[#d4af37]">
+                  {userStats.tasbeehTotalCount}
+                </span>
+              </div>
+
+              {/* Reset All Counters Button */}
+              <div className="pt-2">
+                <button
+                  onClick={handleResetAll}
+                  className="w-full py-3 px-4 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>تصفير وإعادة ضبط كافة العدادات والإحصائيات</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* CLOUD SUBTAB */}
           {activeSubTab === 'cloud' && (
             <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-emerald-900/30 border border-amber-500/30 text-right space-y-2">
+              <div className="p-4 rounded-2xl bg-[#063321]/60 border border-[#d4af37]/30 text-right space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Cloud className="w-5 h-5 text-amber-400" />
-                    <h4 className="text-sm font-bold text-amber-200">
+                    <Cloud className="w-5 h-5 text-[#d4af37]" />
+                    <h4 className="text-sm font-bold text-[#d4af37]">
                       مزامنة فايربيس السحابية (Firebase Cloud Sync)
                     </h4>
                   </div>
-                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+                  <span className="text-[10px] bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30 px-2 py-0.5 rounded-full font-bold">
                     نشط ومتصل
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  مشروع Firebase متصل: <code className="font-mono text-amber-300">lights-of-revelation-qur-an</code>. يمكنك حفظ علاماتك المرجعية وتقدم قراءتك والوصول إليها من أي جهاز آخر في العالم.
+                  مشروع Firebase متصل: <code className="font-mono text-[#d4af37]">lights-of-revelation-qur-an</code>. يمكنك حفظ علاماتك المرجعية وتقدم قراءتك والوصول إليها من أي جهاز آخر في العالم.
                 </p>
               </div>
 
               {currentUser ? (
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-emerald-900/20 border border-slate-200 dark:border-emerald-800 space-y-3">
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#063321]/40 border border-slate-200 dark:border-[#d4af37]/20 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h5 className="text-sm font-bold text-slate-800 dark:text-amber-200">
+                      <h5 className="text-sm font-bold text-slate-800 dark:text-[#f5f2ed]">
                         {currentUser.displayName || 'مستخدم مسجل'}
                       </h5>
-                      <span className="text-xs text-slate-500 dark:text-amber-300/70">
+                      <span className="text-xs text-slate-500 dark:text-[#d4af37]/70">
                         {currentUser.email || 'حساب زائر مجهول'}
                       </span>
                     </div>
                     <button
                       onClick={handleSignOut}
-                      className="px-3 py-1.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/30"
+                      className="px-3 py-1.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/30 cursor-pointer"
                     >
                       تسجيل خروج
                     </button>
@@ -227,7 +313,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
                     <button
                       onClick={handleManualSync}
                       disabled={isSyncing}
-                      className="flex-1 py-2.5 rounded-xl bg-amber-500 text-emerald-950 font-bold text-xs flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                      className="flex-1 py-2.5 rounded-xl bg-[#d4af37] text-[#042118] font-bold text-xs flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
                     >
                       <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                       <span>{isSyncing ? 'جاري المزامنة...' : 'مزامنة البيانات الآن سحابياً'}</span>
@@ -235,14 +321,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
                   </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-emerald-900/20 border border-slate-200 dark:border-emerald-800 text-center space-y-3">
-                  <p className="text-xs text-slate-600 dark:text-amber-200/80">
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#063321]/40 border border-slate-200 dark:border-[#d4af37]/20 text-center space-y-3">
+                  <p className="text-xs text-slate-600 dark:text-[#f5f2ed]/80">
                     سجل دخولك الآن لمزامنة موضع قراءتك وعلاماتك المرجعية عبر جميع أجهزتك الذكية.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-2 justify-center">
                     <button
                       onClick={handleGoogleSignIn}
-                      className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-bold text-xs flex items-center justify-center gap-2 shadow-sm"
+                      className="py-2.5 px-4 rounded-xl bg-[#d4af37] hover:bg-[#c19b2e] text-[#042118] font-bold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                     >
                       <LogIn className="w-4 h-4" />
                       <span>تسجيل الدخول بـ Google</span>
@@ -253,80 +339,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
             </div>
           )}
 
-          {/* STATS SUBTAB */}
-          {activeSubTab === 'stats' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-emerald-900/30 border border-amber-200 dark:border-emerald-800 text-center">
-                  <Flame className="w-6 h-6 text-amber-500 mx-auto mb-1" />
-                  <span className="text-2xl font-bold font-mono text-slate-800 dark:text-amber-300">
-                    12
-                  </span>
-                  <span className="text-xs text-slate-500 dark:text-amber-200/70 block">
-                    أيام تتابع القراءة
-                  </span>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-center">
-                  <BookOpen className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
-                  <span className="text-2xl font-bold font-mono text-slate-800 dark:text-amber-300">
-                    148
-                  </span>
-                  <span className="text-xs text-slate-500 dark:text-amber-200/70 block">
-                    صفحة مقروءة
-                  </span>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-teal-50 dark:bg-emerald-900/30 border border-teal-200 dark:border-emerald-800 text-center">
-                  <Headphones className="w-6 h-6 text-teal-600 dark:text-teal-400 mx-auto mb-1" />
-                  <span className="text-2xl font-bold font-mono text-slate-800 dark:text-amber-300">
-                    18
-                  </span>
-                  <span className="text-xs text-slate-500 dark:text-amber-200/70 block">
-                    ساعة استماع
-                  </span>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-emerald-900/30 border border-indigo-200 dark:border-emerald-800 text-center">
-                  <Award className="w-6 h-6 text-indigo-600 dark:text-indigo-400 mx-auto mb-1" />
-                  <span className="text-2xl font-bold font-mono text-slate-800 dark:text-amber-300">
-                    {activeKhatmah?.completedPages?.length && activeKhatmah.completedPages.length >= 604 ? 2 : 1}
-                  </span>
-                  <span className="text-xs text-slate-500 dark:text-amber-200/70 block">
-                    ختمة مكتملة
-                  </span>
-                </div>
-              </div>
-
-              {/* Badges Achievements */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-emerald-900/20 border border-slate-200 dark:border-emerald-800 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-amber-200">
-                    أوسمة الإنجاز والهمة العالية
-                  </h4>
-                </div>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <span className="px-3 py-1 rounded-xl bg-amber-500/20 text-amber-800 dark:text-amber-300 text-xs font-bold border border-amber-500/30">
-                    🏆 همة القارئ الدائم
-                  </span>
-                  <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-bold border border-emerald-500/30">
-                    🌟 محب سورة الكهف
-                  </span>
-                  <span className="px-3 py-1 rounded-xl bg-teal-500/20 text-teal-800 dark:text-teal-300 text-xs font-bold border border-teal-500/30">
-                    📖 رفيق القرآن
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* BOOKMARKS SUBTAB */}
           {activeSubTab === 'bookmarks' && (
             <div className="space-y-3">
               {bookmarks.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 dark:text-amber-200/70">
-                  <Bookmark className="w-10 h-10 mx-auto text-slate-300 dark:text-emerald-800 mb-2" />
+                <div className="text-center py-12 text-slate-500 dark:text-[#f5f2ed]/60">
+                  <Bookmark className="w-10 h-10 mx-auto text-slate-300 dark:text-[#084d32] mb-2" />
                   <p className="text-sm font-semibold">لا توجد علامات مرجعية محفوظة بعد</p>
                   <p className="text-xs mt-1">اضغط على أيقونة النجمة أو الحفظ في قارئ القرآن لإضافتها هنا</p>
                 </div>
@@ -335,21 +353,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
                   {bookmarks.map(b => (
                     <div
                       key={b.id}
-                      className="p-3.5 rounded-2xl bg-slate-50 dark:bg-emerald-900/30 border border-slate-200 dark:border-emerald-800 flex items-center justify-between gap-3 hover:border-amber-400 transition-all"
+                      className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#063321]/40 border border-slate-200 dark:border-[#d4af37]/20 flex items-center justify-between gap-3 hover:border-[#d4af37] transition-all"
                     >
                       <div
                         onClick={() => handleJumpToBookmark(b)}
                         className="cursor-pointer flex-1 min-w-0 text-right"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded">
+                          <span className="text-xs font-bold bg-[#d4af37]/20 text-[#d4af37] px-2 py-0.5 rounded">
                             سورة {b.surahName}
                           </span>
-                          <span className="text-xs text-slate-500 dark:text-amber-200/70">
+                          <span className="text-xs text-slate-500 dark:text-[#f5f2ed]/70">
                             الآية {b.ayahNumberInSurah}
                           </span>
                         </div>
-                        <p className="font-quran text-sm text-slate-800 dark:text-amber-100 truncate mt-1">
+                        <p className="font-quran text-sm text-slate-800 dark:text-[#f5f2ed] truncate mt-1">
                           ﴿{b.textPreview}﴾
                         </p>
                       </div>
@@ -357,14 +375,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleJumpToBookmark(b)}
-                          className="p-2 rounded-xl bg-amber-500 text-emerald-950 font-bold text-xs hover:bg-amber-400 transition-colors"
+                          className="p-2 rounded-xl bg-[#d4af37] text-[#042118] font-bold text-xs hover:bg-[#c19b2e] transition-colors cursor-pointer"
                           title="فتح في المصحف"
                         >
                           <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
                         </button>
                         <button
                           onClick={() => removeBookmark(b.id)}
-                          className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                          className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                           title="حذف العلامة"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -380,11 +398,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
           {/* BACKUP SUBTAB */}
           {activeSubTab === 'backup' && (
             <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 space-y-2">
-                <h4 className="text-sm font-bold text-slate-800 dark:text-amber-200">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#063321]/40 border border-slate-200 dark:border-[#d4af37]/20 space-y-2">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-[#d4af37]">
                   تصدير واستيراد البيانات (Offline JSON Backup)
                 </h4>
-                <p className="text-xs text-slate-600 dark:text-amber-200/80 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-[#f5f2ed]/80 leading-relaxed">
                   احفظ نسخة احتياطية من جميع علاماتك المرجعية، تقدم الختمات، وإحصائيات القراءة لنقلها لأي جهاز آخر.
                 </p>
               </div>
@@ -392,7 +410,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) =
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={handleExportBackup}
-                  className="flex-1 py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+                  className="flex-1 py-3 px-4 rounded-2xl bg-[#d4af37] hover:bg-[#c19b2e] text-[#042118] font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>تصدير نسخة احتياطية الآن</span>
