@@ -10,9 +10,11 @@ import {
   Moon,
   Sun,
   MapPin,
-  Mic
+  Mic,
+  Lock
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
+import { AdminLoginModal } from './AdminLoginModal';
 
 interface NavbarProps {
   onOpenSearch: () => void;
@@ -36,8 +38,19 @@ export const Navbar: React.FC<NavbarProps> = ({
     togglePlayPause,
     settings,
     updateSettings,
-    setIsVoiceCorrectionOpen
+    setIsVoiceCorrectionOpen,
+    isAdminAuthenticated
   } = useQuran();
+
+  const [showAdminLoginModal, setShowAdminLoginModal] = useState<boolean>(false);
+
+  const handleAdminClick = () => {
+    if (isAdminAuthenticated) {
+      setActiveTab(activeTab === 'admin' ? 'home' : 'admin');
+    } else {
+      setShowAdminLoginModal(true);
+    }
+  };
 
   const toggleTheme = () => {
     const nextTheme = settings.theme === 'emerald' ? 'dark' : settings.theme === 'dark' ? 'sepia' : 'emerald';
@@ -170,19 +183,28 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Admin Switcher */}
             <button
               id="nav-admin-btn"
-              onClick={() => setActiveTab(activeTab === 'admin' ? 'home' : 'admin')}
-              title="لوحة تحكم الإدارة"
+              onClick={handleAdminClick}
+              title={isAdminAuthenticated ? "لوحة تحكم الإدارة (مفتوحة)" : "لوحة تحكم الإدارة (تتطلب كلمة مرور المشرف)"}
               className={`p-2 sm:p-2.5 rounded-xl border transition-all cursor-pointer ${
                 activeTab === 'admin'
                   ? 'bg-[#d4af37] text-[#042118] font-bold border-[#d4af37]'
                   : 'text-[#d4af37]/60 hover:text-[#d4af37] hover:bg-[#084d32] border-transparent'
               }`}
             >
-              <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5" />
+              {isAdminAuthenticated ? (
+                <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5 text-current" />
+              ) : (
+                <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-[#d4af37]/70 hover:text-[#d4af37]" />
+              )}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Admin Login Modal (Password Protected) */}
+      {showAdminLoginModal && (
+        <AdminLoginModal onClose={() => setShowAdminLoginModal(false)} />
+      )}
     </header>
   );
 };

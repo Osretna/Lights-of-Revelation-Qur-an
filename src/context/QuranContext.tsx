@@ -121,6 +121,12 @@ interface QuranContextType {
   isVoiceCorrectionOpen: boolean;
   setIsVoiceCorrectionOpen: (open: boolean) => void;
 
+  // Admin Authentication
+  isAdminAuthenticated: boolean;
+  setIsAdminAuthenticated: (auth: boolean) => void;
+  verifyAdminPassword: (password: string) => boolean;
+  logoutAdmin: () => void;
+
   // Toast notifications
   toastMessage: string | null;
   showToast: (msg: string) => void;
@@ -155,11 +161,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   showSponsorship: true,
   // Google AdSense & Halal Ads Defaults
   adSenseEnabled: true,
-  adSensePublisherId: '',
+  adSensePublisherId: 'ca-pub-6359877001554870',
   adSenseBannerSlot: '',
   adSenseInFeedSlot: '',
   adSenseNativeSlot: '',
-  adSenseTestMode: true,
+  adSenseTestMode: false,
   halalAdFilterActive: true,
   showIslamicFallbackWhenNoAds: true
 };
@@ -190,6 +196,37 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [selectedAyahDetail, setSelectedAyahDetail] = useState<{ surahNum: number; ayah: Ayah; surahMeta: SurahMeta } | null>(null);
   const [isVoiceCorrectionOpen, setIsVoiceCorrectionOpen] = useState<boolean>(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('anwar_admin_auth') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const verifyAdminPassword = (password: string): boolean => {
+    if (password.trim() === 'admin1234') {
+      setIsAdminAuthenticated(true);
+      try {
+        sessionStorage.setItem('anwar_admin_auth', 'true');
+      } catch {
+        // ignore
+      }
+      return true;
+    }
+    return false;
+  };
+
+  const logoutAdmin = () => {
+    setIsAdminAuthenticated(false);
+    try {
+      sessionStorage.removeItem('anwar_admin_auth');
+    } catch {
+      // ignore
+    }
+    setActiveTab('home');
+    showToast('تم تسجيل الخروج وقفل لوحة الإدارة 🔒');
+  };
 
   // Load Settings
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -974,6 +1011,10 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSelectedAyahDetail,
         isVoiceCorrectionOpen,
         setIsVoiceCorrectionOpen,
+        isAdminAuthenticated,
+        setIsAdminAuthenticated,
+        verifyAdminPassword,
+        logoutAdmin,
         toastMessage,
         showToast
       }}

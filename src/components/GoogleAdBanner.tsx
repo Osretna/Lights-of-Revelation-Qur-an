@@ -29,8 +29,15 @@ export const GoogleAdBanner: React.FC<GoogleAdBannerProps> = ({
     return null;
   }
 
+  // Format publisher ID correctly for AdSense (ca-pub-XXXXXXXXXX)
+  const normalizedPublisherId = settings.adSensePublisherId
+    ? settings.adSensePublisherId.startsWith('ca-pub-')
+      ? settings.adSensePublisherId
+      : `ca-${settings.adSensePublisherId}`
+    : 'ca-pub-6359877001554870';
+
   const isPublisherConfigured = Boolean(
-    settings.adSensePublisherId && settings.adSensePublisherId.startsWith('ca-pub-')
+    normalizedPublisherId && normalizedPublisherId.startsWith('ca-pub-') && normalizedPublisherId.length > 10
   );
 
   const activeSlot = slot || settings.adSenseBannerSlot || '1234567890';
@@ -40,30 +47,41 @@ export const GoogleAdBanner: React.FC<GoogleAdBannerProps> = ({
       return;
     }
 
-    try {
-      // Ensure Google AdSense script is injected
-      const scriptId = 'google-adsense-script';
-      if (!document.getElementById(scriptId)) {
-        const script = document.createElement('script');
-        script.id = scriptId;
-        script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${settings.adSensePublisherId}`;
-        script.async = true;
-        script.crossOrigin = 'anonymous';
-        document.head.appendChild(script);
-      }
+    const timer = setTimeout(() => {
+      try {
+        // Ensure Google AdSense script is injected
+        const scriptId = 'google-adsense-script';
+        if (!document.getElementById(scriptId)) {
+          const script = document.createElement('script');
+          script.id = scriptId;
+          script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${normalizedPublisherId}`;
+          script.async = true;
+          script.crossOrigin = 'anonymous';
+          script.onerror = () => {
+            setAdError(true);
+          };
+          document.head.appendChild(script);
+        }
 
-      // Push ad to adsbygoogle queue
-      const win = window as any;
-      if (win) {
-        win.adsbygoogle = win.adsbygoogle || [];
-        win.adsbygoogle.push({});
-        setAdLoaded(true);
+        // Push ad to adsbygoogle queue safely
+        const win = window as any;
+        if (win) {
+          win.adsbygoogle = win.adsbygoogle || [];
+          try {
+            win.adsbygoogle.push({});
+            setAdLoaded(true);
+          } catch (pushErr) {
+            console.debug('AdSense deferred push notice:', pushErr);
+          }
+        }
+      } catch (e) {
+        console.warn('AdSense load exception:', e);
+        setAdError(true);
       }
-    } catch (e) {
-      console.warn('AdSense load exception:', e);
-      setAdError(true);
-    }
-  }, [settings.adSenseEnabled, settings.adSensePublisherId, settings.adSenseTestMode, activeSlot]);
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [settings.adSenseEnabled, normalizedPublisherId, settings.adSenseTestMode, activeSlot]);
 
   const handleReportAd = () => {
     setShowReportDialog(false);
@@ -135,7 +153,7 @@ export const GoogleAdBanner: React.FC<GoogleAdBannerProps> = ({
             <ins
               className="adsbygoogle"
               style={{ display: 'block', width: '100%', minHeight: '90px' }}
-              data-ad-client={settings.adSensePublisherId}
+              data-ad-client={normalizedPublisherId}
               data-ad-slot={activeSlot}
               data-ad-format={format}
               data-full-width-responsive="true"

@@ -32,15 +32,15 @@ export function safeJsonParse<T>(data: string, fallback: T): T {
 export function initSecurityDefenses() {
   if (typeof window === 'undefined') return;
 
-  // Prevent prototype pollution on critical object properties
-  try {
-    Object.freeze(Object.prototype);
-  } catch {}
-
-  // Global uncaught error listener to prevent silent app crashes
+  // Global uncaught error listener to prevent silent app crashes and suppress cross-origin script noise
   window.addEventListener('error', (event) => {
-    if (event.message?.includes('ResizeObserver') || event.message?.includes('Script error')) {
-      return; // Ignore non-critical benign browser events
+    if (
+      event.message?.includes('ResizeObserver') ||
+      event.message?.includes('Script error') ||
+      event.message?.includes('adsbygoogle')
+    ) {
+      event.preventDefault?.();
+      return; // Ignore non-critical cross-origin or AdSense sandbox notifications
     }
     console.warn('Caught defended runtime event:', event.message);
   });

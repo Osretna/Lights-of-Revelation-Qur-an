@@ -20,20 +20,76 @@ import {
   ToggleLeft,
   ToggleRight,
   Layers,
-  Settings
+  Settings,
+  Lock,
+  LogOut,
+  KeyRound,
+  AlertCircle
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 import { HalalAdSenseGuideModal } from './HalalAdSenseGuideModal';
 import { GoogleAdBanner } from './GoogleAdBanner';
+import { AdminLoginModal } from './AdminLoginModal';
 
 export const AdminDashboard: React.FC = () => {
-  const { settings, updateSettings, showToast } = useQuran();
+  const {
+    settings,
+    updateSettings,
+    showToast,
+    isAdminAuthenticated,
+    logoutAdmin,
+    setActiveTab
+  } = useQuran();
 
   const [broadcastTitle, setBroadcastTitle] = useState<string>('تنبيه قرآني: صيام يوم الإثنين سنة نبوية');
   const [broadcastBody, setBroadcastBody] = useState<string>('تذكر قراءة وردك اليومي من القرآن الكريم مع تطبيق أنوار الوحي.');
   const [sentCount, setSentCount] = useState<number>(3);
   const [showGuideModal, setShowGuideModal] = useState<boolean>(false);
+  const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
   const [copiedTxt, setCopiedTxt] = useState<boolean>(false);
+
+  // If not authenticated, render protected gate
+  if (!isAdminAuthenticated) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-6" dir="rtl">
+        <div className="p-8 rounded-3xl bg-[#042118] border-2 border-[#d4af37] shadow-2xl text-[#f5f2ed] space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-[#d4af37]/20 border border-[#d4af37] text-[#d4af37] flex items-center justify-center mx-auto">
+            <Lock className="w-8 h-8" />
+          </div>
+          
+          <div className="space-y-1">
+            <h2 className="font-serif text-xl font-bold text-[#d4af37]">
+              لوحة تحكم الإدارة محمية
+            </h2>
+            <p className="text-xs text-slate-300">
+              يجب إدخال كلمة مرور المشرف للوصول إلى إعدادات الإعلانات والإحصائيات
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col gap-2.5">
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#d4af37] to-[#c19b2e] text-[#042118] font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02]"
+            >
+              <KeyRound className="w-4 h-4" />
+              <span>إدخال كلمة المرور (admin1234)</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('home')}
+              className="w-full py-2.5 rounded-2xl bg-[#063321] text-slate-300 text-xs font-semibold hover:text-white transition-all cursor-pointer"
+            >
+              العودة للرئيسية
+            </button>
+          </div>
+        </div>
+
+        {showLoginModal && (
+          <AdminLoginModal onClose={() => setShowLoginModal(false)} />
+        )}
+      </div>
+    );
+  }
 
   const stats = [
     { title: 'إجمالي القراء النشطين اليوم', value: '48,250', change: '+18%', icon: Users },
@@ -76,8 +132,20 @@ export const AdminDashboard: React.FC = () => {
             </p>
           </div>
 
-          <div className="bg-[#d4af37] text-[#042118] px-4 py-2 rounded-xl font-bold text-xs shadow-md">
-            مشرف النظام والناشر (Admin)
+          <div className="flex items-center gap-2.5">
+            <div className="bg-[#d4af37] text-[#042118] px-4 py-2 rounded-xl font-bold text-xs shadow-md flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-[#042118]" />
+              <span>مشرف مصرح (admin)</span>
+            </div>
+
+            <button
+              onClick={logoutAdmin}
+              title="قفل لوحة الإدارة وتسجيل الخروج"
+              className="px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>قفل اللوحة</span>
+            </button>
           </div>
         </div>
       </div>
