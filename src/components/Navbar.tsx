@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 import { AdminLoginModal } from './AdminLoginModal';
+import { DesignerSignature } from './DesignerSignature';
 
 interface NavbarProps {
   onOpenSearch: () => void;
@@ -81,19 +82,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Center: Next Prayer Pill */}
-          <div className="hidden lg:flex items-center gap-2 bg-[#042118]/90 border border-[#d4af37]/30 px-4 py-2 rounded-full text-xs shadow-inner">
+          {/* Center: Next Prayer Pill & Designer Glow */}
+          <div className="hidden xl:flex items-center gap-3">
+            <DesignerSignature variant="compact" />
+            <div className="flex items-center gap-2 bg-[#042118]/90 border border-[#d4af37]/30 px-3.5 py-1.5 rounded-full text-xs shadow-inner">
+              <div className="w-2 h-2 rounded-full bg-[#d4af37] animate-ping" />
+              <span className="text-[#d4af37]/80">الصلاة القادمة:</span>
+              <span className="text-[#d4af37] font-bold text-xs">{nextPrayer.nameArabic}</span>
+              <span className="text-[#f5f2ed] font-mono bg-[#063321] px-2 py-0.5 rounded text-xs border border-[#d4af37]/20">
+                {nextPrayer.timeString}
+              </span>
+            </div>
+          </div>
+
+          {/* Fallback for lg screens */}
+          <div className="hidden lg:flex xl:hidden items-center gap-2 bg-[#042118]/90 border border-[#d4af37]/30 px-4 py-2 rounded-full text-xs shadow-inner">
             <div className="w-2 h-2 rounded-full bg-[#d4af37] animate-ping" />
             <span className="text-[#d4af37]/80">الصلاة القادمة:</span>
             <span className="text-[#d4af37] font-bold text-sm">{nextPrayer.nameArabic}</span>
             <span className="text-[#f5f2ed] font-mono bg-[#063321] px-2.5 py-0.5 rounded text-xs border border-[#d4af37]/20">
               {nextPrayer.timeString}
-            </span>
-            <span className="text-[#d4af37]/70 text-xs">
-              (متبقي {nextPrayer.formattedCountdown})
-            </span>
-            <span className="text-[#d4af37]/60 text-xs border-r border-[#d4af37]/30 pr-2.5 mr-1 flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-[#d4af37]" /> {settings.locationCity}
             </span>
           </div>
 

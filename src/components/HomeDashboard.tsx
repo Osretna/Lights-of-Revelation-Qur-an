@@ -25,6 +25,7 @@ import { RECITERS_LIST } from '../data/recitersData';
 import { playIslamicTone } from '../utils/adhanAudio';
 import { CommunityDuasBoard } from './CommunityDuasBoard';
 import { GoogleAdBanner } from './GoogleAdBanner';
+import { DesignerSignature } from './DesignerSignature';
 
 export const HomeDashboard: React.FC = () => {
   const {
@@ -439,6 +440,9 @@ export const HomeDashboard: React.FC = () => {
 
       {/* Real-time Firebase Community Duas Board */}
       <CommunityDuasBoard />
+
+      {/* Official Architect & Lead Engineer Signature with 6-Spectrum Illumination */}
+      <DesignerSignature variant="card" />
     </div>
   );
 };

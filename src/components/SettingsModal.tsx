@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 import { HalalAdSenseGuideModal } from './HalalAdSenseGuideModal';
+import { DesignerSignature } from './DesignerSignature';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -230,7 +231,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             />
           </div>
 
-          {/* Section 6: About Anwar Al-Wahy */}
+          {/* Section 6: About Anwar Al-Wahy & Designer Tribute */}
           <div className="p-4 rounded-2xl bg-[#063321] text-[#f5f2ed] border border-[#d4af37]/30 text-center space-y-2">
             <h4 className="font-serif text-base font-bold text-[#d4af37]">
               تطبيق أنوار الوحي للقرآن الكريم
@@ -240,6 +241,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             </p>
             <p className="text-[11px] text-[#d4af37]/60 font-mono">الإصدار 1.0.0 • جميع الحقوق محفوظة لكل مسلم ومسلمة</p>
           </div>
+
+          {/* Designer & Lead Engineer Signature */}
+          <DesignerSignature variant="card" showDetails={false} />
         </div>
       </motion.div>
 

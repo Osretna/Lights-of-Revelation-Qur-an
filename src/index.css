@@ -101,3 +101,79 @@
   background: radial-gradient(circle, rgba(212, 175, 55, 0.2) 0%, rgba(6, 51, 33, 0.8) 100%);
 }
 
+/* Designer Multi-Color Glowing Animation (Gold, Black/Dark, Blue, Purple, Green, White) */
+@keyframes designer-multicolor-glow {
+  0%, 100% {
+    /* 1. Gold Yellow */
+    border-color: #d4af37;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.75), inset 0 0 12px rgba(212, 175, 55, 0.4);
+  }
+  16.6% {
+    /* 2. Black / Dark Obsidian */
+    border-color: #1e293b;
+    box-shadow: 0 0 22px rgba(15, 23, 42, 0.95), 0 0 10px rgba(255, 255, 255, 0.35), inset 0 0 14px rgba(0, 0, 0, 0.85);
+  }
+  33.3% {
+    /* 3. Blue */
+    border-color: #38bdf8;
+    box-shadow: 0 0 22px rgba(56, 189, 248, 0.85), inset 0 0 12px rgba(14, 165, 233, 0.4);
+  }
+  50% {
+    /* 4. Purple / Violet */
+    border-color: #c084fc;
+    box-shadow: 0 0 22px rgba(192, 132, 252, 0.85), inset 0 0 12px rgba(168, 85, 247, 0.4);
+  }
+  66.6% {
+    /* 5. Green / Emerald */
+    border-color: #34d399;
+    box-shadow: 0 0 22px rgba(52, 211, 153, 0.85), inset 0 0 12px rgba(16, 185, 129, 0.4);
+  }
+  83.3% {
+    /* 6. White */
+    border-color: #ffffff;
+    box-shadow: 0 0 25px rgba(255, 255, 255, 0.95), inset 0 0 14px rgba(255, 255, 255, 0.6);
+  }
+}
+
+@keyframes designer-text-multicolor {
+  0%, 100% {
+    /* 1. Gold Yellow */
+    color: #fbbf24;
+    text-shadow: 0 0 12px rgba(251, 191, 36, 0.9), 0 0 25px rgba(212, 175, 55, 0.6);
+  }
+  16.6% {
+    /* 2. Black / Obsidian with white aura */
+    color: #ffffff;
+    text-shadow: 0 0 12px rgba(15, 23, 42, 1), 0 0 22px rgba(0, 0, 0, 0.95), 0 0 5px rgba(255, 255, 255, 0.9);
+  }
+  33.3% {
+    /* 3. Blue */
+    color: #38bdf8;
+    text-shadow: 0 0 12px rgba(56, 189, 248, 0.9), 0 0 25px rgba(2, 132, 199, 0.7);
+  }
+  50% {
+    /* 4. Purple / Violet */
+    color: #c084fc;
+    text-shadow: 0 0 12px rgba(192, 132, 252, 0.9), 0 0 25px rgba(147, 51, 234, 0.7);
+  }
+  66.6% {
+    /* 5. Green / Emerald */
+    color: #34d399;
+    text-shadow: 0 0 12px rgba(52, 211, 153, 0.9), 0 0 25px rgba(16, 185, 129, 0.7);
+  }
+  83.3% {
+    /* 6. White */
+    color: #ffffff;
+    text-shadow: 0 0 14px rgba(255, 255, 255, 1), 0 0 28px rgba(255, 255, 255, 0.85);
+  }
+}
+
+.animate-designer-glow {
+  animation: designer-multicolor-glow 7s infinite ease-in-out;
+}
+
+.animate-designer-text {
+  animation: designer-text-multicolor 7s infinite ease-in-out;
+}
+
+

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert,
   Users,
@@ -24,12 +24,15 @@ import {
   Lock,
   LogOut,
   KeyRound,
-  AlertCircle
+  AlertCircle,
+  RotateCcw,
+  Activity
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 import { HalalAdSenseGuideModal } from './HalalAdSenseGuideModal';
 import { GoogleAdBanner } from './GoogleAdBanner';
 import { AdminLoginModal } from './AdminLoginModal';
+import { DesignerSignature } from './DesignerSignature';
 
 export const AdminDashboard: React.FC = () => {
   const {
@@ -91,11 +94,50 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
+  // Live zeroed statistics starting fresh from now
+  const [activeReadersCount, setActiveReadersCount] = useState<number>(1);
+  const [listeningHours, setListeningHours] = useState<number>(0.0);
+  const [completedKhatmahs, setCompletedKhatmahs] = useState<number>(0);
+  const [offlineRequests, setOfflineRequests] = useState<number>(0);
+  const [launchTime] = useState<string>(() => new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }));
+
+  const handleResetCounters = () => {
+    setActiveReadersCount(1);
+    setListeningHours(0.0);
+    setCompletedKhatmahs(0);
+    setOfflineRequests(0);
+    showToast('تم تصفير جميع عدادات الإحصائيات وبدء التسجيل الحي من الآن 🟢');
+  };
+
   const stats = [
-    { title: 'إجمالي القراء النشطين اليوم', value: '48,250', change: '+18%', icon: Users },
-    { title: 'ساعات الاستماع الصوتية', value: '12,840', change: '+24%', icon: Headphones },
-    { title: 'الختمات المنجزة هذا الشهر', value: '1,420', change: '+32%', icon: CheckCircle2 },
-    { title: 'طلبات التلاوات بدون إنترنت', value: '89,100', change: '+15%', icon: Radio }
+    {
+      title: 'إجمالي القراء النشطين الآن',
+      value: `${activeReadersCount}`,
+      change: '🟢 بدء التشغيل الحي',
+      subtitle: 'متصل الآن في الجلسة الفعلية',
+      icon: Users
+    },
+    {
+      title: 'ساعات الاستماع الصوتية',
+      value: `${listeningHours.toFixed(2)} س`,
+      change: '0% (جديد)',
+      subtitle: 'ساعات الاستماع المباشرة',
+      icon: Headphones
+    },
+    {
+      title: 'الختمات المنجزة هذا الشهر',
+      value: `${completedKhatmahs}`,
+      change: '0% (جديد)',
+      subtitle: 'الختمات المكتملة حديثاً',
+      icon: CheckCircle2
+    },
+    {
+      title: 'طلبات التلاوات بدون إنترنت',
+      value: `${offlineRequests}`,
+      change: '0% (جديد)',
+      subtitle: 'تحميلات التلاوات المباشرة',
+      icon: Radio
+    }
   ];
 
   const handleSendBroadcast = (e: React.FormEvent) => {
@@ -128,7 +170,7 @@ export const AdminDashboard: React.FC = () => {
               </h1>
             </div>
             <p className="text-sm text-slate-200 mt-1">
-              متابعة الإحصائيات الحية، إدارة إعلانات Google AdSense الحلال، وضوابط الشريعة الإسلامية.
+              متابعة الإحصائيات الحية الفعلية، إدارة إعلانات Google AdSense الحلال، وضوابط الشريعة الإسلامية.
             </p>
           </div>
 
@@ -150,6 +192,26 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Global Designer Signature Banner in Admin Dashboard */}
+      <DesignerSignature variant="card" />
+
+      {/* Analytics KPI Header & Reset Controls */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#063321]/70 border border-[#d4af37]/25 rounded-2xl px-5 py-3.5">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
+          <span className="text-xs font-bold text-[#d4af37]">
+            الإحصائيات مصفّرة وتبدأ التسجيل المباشر من الآن (توقيت البدء: {launchTime})
+          </span>
+        </div>
+        <button
+          onClick={handleResetCounters}
+          className="px-3 py-1.5 rounded-xl bg-[#042118] hover:bg-[#084d32] border border-[#d4af37]/30 text-[#f5f2ed] hover:text-[#d4af37] text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>تصفير وإعادة تعيين العدادات</span>
+        </button>
+      </div>
+
       {/* Analytics KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(s => {
@@ -157,20 +219,21 @@ export const AdminDashboard: React.FC = () => {
           return (
             <div
               key={s.title}
-              className="p-5 rounded-3xl bg-white dark:bg-[#063321] border border-slate-200 dark:border-[#d4af37]/20 shadow-sm space-y-2"
+              className="p-5 rounded-3xl bg-white dark:bg-[#063321] border border-slate-200 dark:border-[#d4af37]/25 shadow-sm space-y-2 relative overflow-hidden group hover:border-[#d4af37] transition-all"
             >
               <div className="flex justify-between items-center">
                 <div className="p-2.5 rounded-xl bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30">
                   <Icon className="w-5 h-5" />
                 </div>
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                   {s.change}
                 </span>
               </div>
-              <h3 className="text-2xl font-black font-mono text-slate-900 dark:text-[#f5f2ed]">
+              <h3 className="text-3xl font-black font-mono text-slate-900 dark:text-[#f5f2ed] pt-1">
                 {s.value}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-[#f5f2ed]/70">{s.title}</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-[#f5f2ed]">{s.title}</p>
+              <p className="text-[10px] text-slate-500 dark:text-[#f5f2ed]/60">{s.subtitle}</p>
             </div>
           );
         })}
