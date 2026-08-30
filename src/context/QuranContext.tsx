@@ -50,6 +50,7 @@ export interface AudioState {
   playbackSpeed: number;
   repeatMode: 'none' | 'ayah' | 'surah';
   audioMode: 'ayah' | 'surah';
+  playSingleAyahOnly?: boolean;
   audioElement: HTMLAudioElement | null;
 }
 
@@ -93,7 +94,7 @@ interface QuranContextType {
   audioState: AudioState;
   playSurahAudio: (surahNum: number, reciterId?: string) => void;
   playSurahFullAudio: (surahNum: number, reciterId?: string) => void;
-  playAyahAudio: (surahNum: number, ayahNum: number, reciterId?: string) => void;
+  playAyahAudio: (surahNum: number, ayahNum: number, reciterId?: string, singleAyahOnly?: boolean) => void;
   pauseAudio: () => void;
   resumeAudio: () => void;
   togglePlayPause: () => void;
@@ -143,6 +144,15 @@ const DEFAULT_SETTINGS: AppSettings = {
   repeatMode: 'none',
   prayerCalcMethod: 'Makkah',
   juristicMethod: 'shafii',
+  timeFormat: '12h',
+  prayerOffsets: {
+    fajr: 0,
+    sunrise: 0,
+    dhuhr: 0,
+    asr: 0,
+    maghrib: 0,
+    isha: 0
+  },
   adhanNotification: true,
   adhanReminderMinutes: 0,
   playAdhanAudioOnTime: true,
@@ -601,7 +611,10 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const handleEnded = () => {
       setAudioState(prev => {
-        if (prev.repeatMode === 'ayah' && prev.audioMode === 'ayah') {
+        if (prev.playSingleAyahOnly) {
+          // If explicitly requested to play a single ayah only (e.g., Voice Correction / pronunciation check)
+          return { ...prev, isPlaying: false, currentTime: 0, playSingleAyahOnly: false };
+        } else if (prev.repeatMode === 'ayah' && prev.audioMode === 'ayah') {
           playAyahAudio(prev.surahNumber, prev.ayahNumber, prev.reciter.id);
           return prev;
         } else if (prev.repeatMode === 'surah') {
@@ -682,7 +695,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
   };
 
-  const playAyahAudio = (surahNum: number, ayahNum: number, reciterId?: string) => {
+  const playAyahAudio = (surahNum: number, ayahNum: number, reciterId?: string, singleAyahOnly: boolean = false) => {
     setSelectedSurahNum(surahNum);
     setSelectedAyahNum(ayahNum);
 
@@ -700,6 +713,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ayahNumber: ayahNum,
       reciter: targetReciter,
       audioMode: 'ayah',
+      playSingleAyahOnly: singleAyahOnly,
       currentTime: 0
     }));
   };
@@ -820,7 +834,8 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       settings.lat,
       settings.lng,
       settings.prayerCalcMethod,
-      settings.juristicMethod
+      settings.juristicMethod,
+      settings.prayerOffsets
     );
   });
 
@@ -831,6 +846,39 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Track notified prayers to avoid duplicate alerts within the same prayer window
   const lastNotifiedRef = useRef<string>('');
 
+  // Fetch online accurate timings when location or method or offsets change
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchTimings = async () => {
+      const live = await fetchLiveAladhanTimings(
+        settings.lat,
+        settings.lng,
+        settings.prayerCalcMethod,
+        settings.juristicMethod,
+        settings.prayerOffsets
+      );
+      if (!isCancelled && live) {
+        setPrayerTimes(live);
+        setNextPrayer(getNextPrayer(live));
+      }
+    };
+    fetchTimings();
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    settings.lat,
+    settings.lng,
+    settings.prayerCalcMethod,
+    settings.juristicMethod,
+    settings.prayerOffsets?.fajr,
+    settings.prayerOffsets?.sunrise,
+    settings.prayerOffsets?.dhuhr,
+    settings.prayerOffsets?.asr,
+    settings.prayerOffsets?.maghrib,
+    settings.prayerOffsets?.isha
+  ]);
+
   // Live prayer countdown & notification ticker
   useEffect(() => {
     const updateTimes = () => {
@@ -839,7 +887,8 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         settings.lat,
         settings.lng,
         settings.prayerCalcMethod,
-        settings.juristicMethod
+        settings.juristicMethod,
+        settings.prayerOffsets
       );
       setPrayerTimes(calculated);
       const nextInfo = getNextPrayer(calculated);
@@ -890,6 +939,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     settings.lng,
     settings.prayerCalcMethod,
     settings.juristicMethod,
+    settings.prayerOffsets,
     settings.adhanNotification,
     settings.adhanReminderMinutes,
     settings.playAdhanAudioOnTime,
@@ -897,20 +947,27 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     settings.adhanNotificationPrayers
   ]);
 
-  // Automatic GPS Geolocation & Live Reverse Geocoding
+  // Automatic High-Precision GPS Geolocation & Live Reverse Geocoding
   const refreshLocation = async () => {
     if (!('geolocation' in navigator)) {
       showToast('خاصية تحديد الموقع غير مدعومة في متصفحك.');
       return;
     }
 
-    showToast('جاري تحديد موقعك الجغرافي وحساب المواقيت بدقة 📍...');
+    showToast('جاري تحديد موقعك الجغرافي وحساب المواقيت والقبلة بأعلى دقة GPS 📍...');
     navigator.geolocation.getCurrentPosition(
       async pos => {
         const { latitude, longitude } = pos.coords;
         try {
           const geoResult = await reverseGeocode(latitude, longitude);
-          const liveTimings = await fetchLiveAladhanTimings(latitude, longitude, settings.prayerCalcMethod);
+          const recommendedMethod = geoResult.recommendedMethod || settings.prayerCalcMethod;
+          const liveTimings = await fetchLiveAladhanTimings(
+            latitude,
+            longitude,
+            recommendedMethod,
+            settings.juristicMethod,
+            settings.prayerOffsets
+          );
 
           const locationName = geoResult.fullName || geoResult.city || 'الموقع الحالي (GPS)';
 
@@ -918,6 +975,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             lat: latitude,
             lng: longitude,
             locationCity: locationName,
+            prayerCalcMethod: recommendedMethod,
             autoDetectLocation: true
           });
 
@@ -925,14 +983,28 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setPrayerTimes(liveTimings);
             setNextPrayer(getNextPrayer(liveTimings));
           } else {
-            const calculated = calculatePrayerTimes(new Date(), latitude, longitude, settings.prayerCalcMethod, settings.juristicMethod);
+            const calculated = calculatePrayerTimes(
+              new Date(),
+              latitude,
+              longitude,
+              recommendedMethod,
+              settings.juristicMethod,
+              settings.prayerOffsets
+            );
             setPrayerTimes(calculated);
             setNextPrayer(getNextPrayer(calculated));
           }
 
-          showToast(`تم تحديد موقعك: ${locationName} وضبط مواقيت الصلاة بدقة 🕌`);
+          showToast(`تم تحديد موقعك بدقة: ${locationName} وضبط تقويم (${recommendedMethod === 'Makkah' ? 'أم القرى - مكة المكرمة' : recommendedMethod === 'Egypt' ? 'المساحة المصرية' : recommendedMethod}) 🕌`);
         } catch (e) {
-          const calculated = calculatePrayerTimes(new Date(), latitude, longitude, settings.prayerCalcMethod, settings.juristicMethod);
+          const calculated = calculatePrayerTimes(
+            new Date(),
+            latitude,
+            longitude,
+            settings.prayerCalcMethod,
+            settings.juristicMethod,
+            settings.prayerOffsets
+          );
           setPrayerTimes(calculated);
           setNextPrayer(getNextPrayer(calculated));
           showToast('تم تحديد الإحداثيات وتحديث مواقيت الصلاة 📍');
@@ -942,7 +1014,7 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('Geolocation failed:', err);
         showToast('يرجى السماح بالوصول للموقع لتحديد مواقيت الصلاة والقبلة تلقائياً.');
       },
-      { enableHighAccuracy: true, timeout: 12000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 

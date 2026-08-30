@@ -13,7 +13,8 @@ import {
   Check,
   Info,
   ShieldCheck,
-  BookOpen
+  BookOpen,
+  Clock
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 import { HalalAdSenseGuideModal } from './HalalAdSenseGuideModal';
@@ -138,7 +139,103 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             </div>
           </div>
 
-          {/* Section 3: Adhan Alerts */}
+          {/* Section 3: Prayer Times & Calculation Method */}
+          <div className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-[#063321]/40 border border-slate-200 dark:border-[#d4af37]/20">
+            <label className="text-xs font-bold text-slate-700 dark:text-[#d4af37] flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4 text-[#d4af37]" />
+              <span>التقويم وحساب مواقيت الصلاة:</span>
+            </label>
+
+            <div className="space-y-2">
+              <select
+                value={settings.prayerCalcMethod}
+                onChange={e => {
+                  updateSettings({ prayerCalcMethod: e.target.value as any });
+                  showToast('تم تغيير التقويم الفلكي المعتمد 🕌');
+                }}
+                className="w-full py-2.5 px-3 rounded-xl bg-white dark:bg-[#042118] border border-slate-300 dark:border-[#d4af37]/30 text-xs text-slate-800 dark:text-[#f5f2ed] font-bold focus:outline-none focus:border-[#d4af37]"
+              >
+                <option value="Makkah">جامعة أم القرى - مكة المكرمة (السعودية والخليج)</option>
+                <option value="Egypt">الهيئة المصرية العامة للمساحة (مصر وشمال إفريقيا)</option>
+                <option value="MWL">رابطة العالم الإسلامي MWL (العراق والشام وأوروبا)</option>
+                <option value="Dubai">دائرة الشؤون الإسلامية بدبي (الإمارات)</option>
+                <option value="Qatar">وزارة الأوقاف والشؤون الإسلامية (قطر)</option>
+                <option value="Kuwait">وزارة الأوقاف والشؤون الإسلامية (الكويت)</option>
+                <option value="Turkey">رئاسة الشؤون الدينية التركية (Diyanet)</option>
+                <option value="Karachi">جامعة العلوم الإسلامية بكراتشي (باكستان والهند)</option>
+                <option value="ISNA">الجمعية الإسلامية لأمريكا الشمالية (ISNA)</option>
+                <option value="Algeria">وزارة الشؤون الدينية (الجزائر)</option>
+                <option value="Tunisia">وزارة الشؤون الدينية (تونس)</option>
+                <option value="France">اتحاد المنظمات الإسلامية (فرنسا)</option>
+              </select>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  onClick={() => updateSettings({ juristicMethod: 'shafii' })}
+                  className={`py-2 px-2 rounded-xl text-xs font-bold border text-center transition-all cursor-pointer ${
+                    settings.juristicMethod === 'shafii'
+                      ? 'bg-[#d4af37] text-[#042118] border-[#d4af37]'
+                      : 'bg-white dark:bg-[#042118] border-slate-200 dark:border-[#d4af37]/20 text-slate-700 dark:text-[#f5f2ed]'
+                  }`}
+                >
+                  الجمهور (شافعي/مالكي/حنبلي)
+                </button>
+                <button
+                  onClick={() => updateSettings({ juristicMethod: 'hanafi' })}
+                  className={`py-2 px-2 rounded-xl text-xs font-bold border text-center transition-all cursor-pointer ${
+                    settings.juristicMethod === 'hanafi'
+                      ? 'bg-[#d4af37] text-[#042118] border-[#d4af37]'
+                      : 'bg-white dark:bg-[#042118] border-slate-200 dark:border-[#d4af37]/20 text-slate-700 dark:text-[#f5f2ed]'
+                  }`}
+                >
+                  المذهب الحنفي
+                </button>
+              </div>
+
+              {/* Time Format Toggle (12 Hours vs 24 Hours) */}
+              <div className="pt-2 border-t border-slate-200 dark:border-[#d4af37]/20">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-slate-700 dark:text-[#d4af37] flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-[#d4af37]" />
+                    <span>نظام عرض الوقت:</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-[#f5f2ed]/60">
+                    {settings.timeFormat === '12h' ? 'نظام 12 ساعة (ص / م)' : 'نظام 24 ساعة'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      updateSettings({ timeFormat: '12h' });
+                      showToast('تم تفعيل عرض التوقيت بنظام 12 ساعة (ص/م) ⏱️');
+                    }}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold border text-center transition-all cursor-pointer ${
+                      settings.timeFormat === '12h'
+                        ? 'bg-[#d4af37] text-[#042118] border-[#d4af37] shadow-sm'
+                        : 'bg-white dark:bg-[#042118] border-slate-200 dark:border-[#d4af37]/20 text-slate-700 dark:text-[#f5f2ed]'
+                    }`}
+                  >
+                    12 ساعة (05:30 م / ص)
+                  </button>
+                  <button
+                    onClick={() => {
+                      updateSettings({ timeFormat: '24h' });
+                      showToast('تم تفعيل عرض التوقيت بنظام 24 ساعة ⏱️');
+                    }}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold border text-center transition-all cursor-pointer ${
+                      settings.timeFormat === '24h'
+                        ? 'bg-[#d4af37] text-[#042118] border-[#d4af37] shadow-sm'
+                        : 'bg-white dark:bg-[#042118] border-slate-200 dark:border-[#d4af37]/20 text-slate-700 dark:text-[#f5f2ed]'
+                    }`}
+                  >
+                    24 ساعة (17:30)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Adhan Alerts */}
           <div className="space-y-3">
             <label className="text-xs font-bold text-slate-700 dark:text-[#d4af37] flex items-center gap-1.5">
               <Bell className="w-4 h-4 text-[#d4af37]" />

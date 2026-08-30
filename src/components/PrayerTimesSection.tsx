@@ -1,25 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Clock,
   Volume2,
-  VolumeX,
-  Play,
-  Pause,
   MapPin,
-  Calendar,
   Compass,
-  Sparkles,
-  ChevronLeft,
   Navigation,
   Bell,
   BellRing,
-  CheckCircle2,
-  AlertCircle
+  Sliders,
+  RotateCcw,
+  Plus,
+  Minus,
+  Search,
+  BookOpen,
+  Info,
+  Check,
+  CheckCircle2
 } from 'lucide-react';
 import { useQuran } from '../context/QuranContext';
 import { MUADHINS_LIST, playIslamicTone, playAdhanAudio, requestNotificationPermission, triggerPrayerNotification } from '../utils/adhanAudio';
-import { POPULAR_CITIES } from '../utils/prayerCalculator';
+import { POPULAR_CITIES, CALCULATION_METHODS, CityLocation, formatPrayerTime } from '../utils/prayerCalculator';
+import { AppSettings, PrayerOffsets } from '../types/quran';
 
 export const PrayerTimesSection: React.FC = () => {
   const {
@@ -34,18 +36,38 @@ export const PrayerTimesSection: React.FC = () => {
 
   const [isPlayingAdhan, setIsPlayingAdhan] = useState<boolean>(false);
   const [showCityPicker, setShowCityPicker] = useState<boolean>(false);
+  const [showOffsetModal, setShowOffsetModal] = useState<boolean>(false);
+  const [citySearchQuery, setCitySearchQuery] = useState<string>('');
+  const [selectedCountryFilter, setSelectedCountryFilter] = useState<string>('الكل');
   const [activeAdhanAudio, setActiveAdhanAudio] = useState<HTMLAudioElement | null>(null);
   const [isLocating, setIsLocating] = useState<boolean>(false);
 
-  const handleSelectCity = (c: typeof POPULAR_CITIES[0]) => {
+  // Available countries in popular cities
+  const countriesList = useMemo(() => {
+    const set = new Set(POPULAR_CITIES.map(c => c.country));
+    return ['الكل', ...Array.from(set)];
+  }, []);
+
+  const filteredCities = useMemo(() => {
+    return POPULAR_CITIES.filter(c => {
+      const matchSearch =
+        c.name.toLowerCase().includes(citySearchQuery.trim().toLowerCase()) ||
+        c.country.toLowerCase().includes(citySearchQuery.trim().toLowerCase());
+      const matchCountry = selectedCountryFilter === 'الكل' || c.country === selectedCountryFilter;
+      return matchSearch && matchCountry;
+    });
+  }, [citySearchQuery, selectedCountryFilter]);
+
+  const handleSelectCity = (c: CityLocation) => {
     updateSettings({
       locationCity: `${c.name} - ${c.country}`,
       lat: c.lat,
       lng: c.lng,
+      prayerCalcMethod: c.defaultMethod,
       autoDetectLocation: false
     });
     setShowCityPicker(false);
-    showToast(`تم تغيير المدينة إلى: ${c.name} 🕌`);
+    showToast(`تم تغيير المدينة إلى: ${c.name} (${c.country}) وضبط التقويم المعتمد 🕌`);
   };
 
   const handleGPSLocation = () => {
@@ -113,43 +135,99 @@ export const PrayerTimesSection: React.FC = () => {
     });
   };
 
+  // Adjust minute offset for a specific prayer
+  const handleOffsetChange = (prayerKey: keyof PrayerOffsets, delta: number) => {
+    const currentOffsets = settings.prayerOffsets || {
+      fajr: 0,
+      sunrise: 0,
+      dhuhr: 0,
+      asr: 0,
+      maghrib: 0,
+      isha: 0
+    };
+    const newVal = (currentOffsets[prayerKey] || 0) + delta;
+    updateSettings({
+      prayerOffsets: {
+        ...currentOffsets,
+        [prayerKey]: newVal
+      }
+    });
+  };
+
+  const handleResetOffsets = () => {
+    updateSettings({
+      prayerOffsets: {
+        fajr: 0,
+        sunrise: 0,
+        dhuhr: 0,
+        asr: 0,
+        maghrib: 0,
+        isha: 0
+      }
+    });
+    showToast('تمت إعادة ضبط تعديلات الدقائق إلى الصفر (الافتراضي) 🔄');
+  };
+
+  const activeMethodObj = CALCULATION_METHODS.find(m => m.id === settings.prayerCalcMethod) || CALCULATION_METHODS[0];
+
   const prayers = [
-    { key: 'fajr', name: 'الفجر', time: prayerTimes.fajr, icon: '🌅' },
-    { key: 'sunrise', name: 'الشروق', time: prayerTimes.sunrise, icon: '☀️' },
-    { key: 'dhuhr', name: 'الظهر', time: prayerTimes.dhuhr, icon: '🌞' },
-    { key: 'asr', name: 'العصر', time: prayerTimes.asr, icon: '🌤️' },
-    { key: 'maghrib', name: 'المغرب', time: prayerTimes.maghrib, icon: '🌇' },
-    { key: 'isha', name: 'العشاء', time: prayerTimes.isha, icon: '🌙' }
+    { key: 'fajr' as const, name: 'الفجر', time: prayerTimes.fajr, icon: '🌅', offset: settings.prayerOffsets?.fajr || 0 },
+    { key: 'sunrise' as const, name: 'الشروق', time: prayerTimes.sunrise, icon: '☀️', offset: settings.prayerOffsets?.sunrise || 0 },
+    { key: 'dhuhr' as const, name: 'الظهر', time: prayerTimes.dhuhr, icon: '🌞', offset: settings.prayerOffsets?.dhuhr || 0 },
+    { key: 'asr' as const, name: 'العصر', time: prayerTimes.asr, icon: '🌤️', offset: settings.prayerOffsets?.asr || 0 },
+    { key: 'maghrib' as const, name: 'المغرب', time: prayerTimes.maghrib, icon: '🌇', offset: settings.prayerOffsets?.maghrib || 0 },
+    { key: 'isha' as const, name: 'العشاء', time: prayerTimes.isha, icon: '🌙', offset: settings.prayerOffsets?.isha || 0 }
   ];
+
+  const totalActiveOffsets = Object.values(settings.prayerOffsets || {}).reduce<number>(
+    (acc, v) => acc + (typeof v === 'number' && v !== 0 ? 1 : 0),
+    0
+  );
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 pb-28 space-y-6">
       {/* Top Banner */}
       <div className="bg-gradient-to-r from-[#063321] via-[#042118] to-[#063321] border-2 border-[#d4af37]/30 rounded-3xl p-6 text-[#f5f2ed] shadow-lg relative overflow-hidden">
-        <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
             <div className="flex items-center gap-2">
               <Clock className="w-6 h-6 text-[#d4af37]" />
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#d4af37]">
-                مواقيت الصلاة والأذان
+                مواقيت الصلاة والأذان المعتمدة
               </h1>
             </div>
             <p className="text-xs sm:text-sm text-[#f5f2ed]/80 mt-1">
-              مواقيت صلاة فلكية دقيقة وتنبيهات أذان حية حسب موقعك الجغرافي والبلد المحدد.
+              حساب فلكي دقيق ومباشر متوافق مع تقويم أم القرى بالمملكة العربية السعودية وكبرى الهيئات الإسلامية.
             </p>
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <span className="text-[11px] bg-[#042118] text-[#d4af37] px-2.5 py-0.5 rounded-lg border border-[#d4af37]/30 flex items-center gap-1 font-semibold">
+                <BookOpen className="w-3 h-3 text-[#d4af37]" />
+                التقويم: {activeMethodObj.name}
+              </span>
+              <span className="text-[11px] bg-[#042118] text-emerald-300 px-2.5 py-0.5 rounded-lg border border-emerald-500/30 font-semibold">
+                المذهب: {settings.juristicMethod === 'shafii' ? 'الجمهور (شافعي/حنبلي/مالكي)' : 'المذهب الحنفي'}
+              </span>
+              {totalActiveOffsets > 0 && (
+                <span className="text-[11px] bg-[#d4af37]/20 text-[#d4af37] px-2 py-0.5 rounded-lg border border-[#d4af37]/40 font-bold animate-pulse">
+                  تم تطبيق ضبط يدوي بالدقائق ({totalActiveOffsets} صلوات)
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-start lg:justify-end">
             {/* Auto GPS Locate Button */}
             <button
               onClick={handleGPSLocation}
               disabled={isLocating}
               className="flex items-center gap-1.5 bg-[#d4af37] hover:bg-[#c19b2e] text-[#042118] px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              title="تحديد الموقع الجغرافي وحساب المواقيت والقبلة بالـ GPS"
             >
               <Navigation className={`w-4 h-4 ${isLocating ? 'animate-spin' : ''}`} />
               <span>{isLocating ? 'جاري التحديد...' : 'تحديد موقعي التلقائي (GPS)'}</span>
             </button>
 
+            {/* City Selector */}
             <button
               onClick={() => setShowCityPicker(true)}
               className="flex items-center gap-1.5 bg-[#084d32] hover:bg-[#063321] border border-[#d4af37]/40 text-[#d4af37] px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
@@ -158,6 +236,17 @@ export const PrayerTimesSection: React.FC = () => {
               <span>{settings.locationCity}</span>
             </button>
 
+            {/* Manual Calibration Modal Button */}
+            <button
+              onClick={() => setShowOffsetModal(true)}
+              className="flex items-center gap-1.5 bg-[#084d32] hover:bg-[#063321] border border-[#d4af37]/40 text-[#f5f2ed] hover:text-[#d4af37] px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              title="تعديل وضبط دقائق الصلاة يدوياً لتطابق مسجد حيك تماماً"
+            >
+              <Sliders className="w-4 h-4 text-[#d4af37]" />
+              <span>ضبط الدقائق (+/-)</span>
+            </button>
+
+            {/* Qibla Button */}
             <button
               onClick={() => setActiveTab('qibla')}
               className="flex items-center gap-1.5 bg-[#084d32] border border-[#d4af37]/30 hover:border-[#d4af37] text-[#f5f2ed] px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
@@ -179,10 +268,13 @@ export const PrayerTimesSection: React.FC = () => {
             صلاة {nextPrayer.nameArabic}
           </h2>
           <p className="text-xs sm:text-sm text-[#f5f2ed]/80">
-            موعد الأذان: <strong className="text-[#d4af37] font-mono text-base">{nextPrayer.timeString}</strong>
+            موعد الأذان: <strong className="text-[#d4af37] font-mono text-base">{formatPrayerTime(nextPrayer.timeString, settings.timeFormat || '12h')}</strong>
           </p>
           <p className="text-xs text-emerald-300 mt-1">
             متبقي حتى موعد الأذان: <span className="font-mono font-bold text-[#d4af37] text-base">{nextPrayer.formattedCountdown}</span>
+          </p>
+          <p className="text-[11px] text-slate-400 mt-1">
+            التاريخ الهجري: {prayerTimes.hijriDate || '1448 هـ'}
           </p>
         </div>
 
@@ -194,7 +286,7 @@ export const PrayerTimesSection: React.FC = () => {
           >
             {isPlayingAdhan ? (
               <>
-                <Pause className="w-5 h-5 fill-[#042118]" />
+                <Volume2 className="w-5 h-5 fill-[#042118]" />
                 <span>إيقاف صوت الأذان</span>
               </>
             ) : (
@@ -215,14 +307,15 @@ export const PrayerTimesSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Prayers 6 Cards Grid */}
+      {/* Prayers 6 Cards Grid with Minute Offsets Display */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {prayers.map(p => {
           const isNext = nextPrayer.nameArabic === p.name;
+          const displayTime = formatPrayerTime(p.time, settings.timeFormat || '12h');
           return (
             <div
               key={p.key}
-              className={`p-4 rounded-3xl border text-center transition-all flex flex-col justify-between ${
+              className={`p-4 rounded-3xl border text-center transition-all flex flex-col justify-between relative group ${
                 isNext
                   ? 'bg-gradient-to-b from-[#d4af37] to-[#c19b2e] text-[#042118] border-[#d4af37] font-bold shadow-lg scale-105'
                   : 'bg-white dark:bg-[#063321] border-slate-200 dark:border-[#d4af37]/20 text-slate-800 dark:text-[#f5f2ed]'
@@ -234,21 +327,106 @@ export const PrayerTimesSection: React.FC = () => {
               </div>
 
               <div className="my-2">
-                <span className={`text-xl font-bold font-mono ${isNext ? 'text-[#042118]' : 'text-[#d4af37]'}`}>
-                  {p.time}
+                <span className={`text-base sm:text-lg font-bold font-mono ${isNext ? 'text-[#042118]' : 'text-[#d4af37]'}`}>
+                  {displayTime}
                 </span>
+                {p.offset !== 0 && (
+                  <span className={`block text-[10px] font-mono font-bold mt-0.5 ${isNext ? 'text-[#042118]/80' : 'text-emerald-400'}`}>
+                    ({p.offset > 0 ? `+${p.offset}` : p.offset} دقيقة)
+                  </span>
+                )}
               </div>
 
-              <span
-                className={`text-[10px] px-2 py-0.5 rounded-full ${
-                  isNext ? 'bg-[#042118] text-[#d4af37]' : 'bg-slate-100 dark:bg-[#042118] text-slate-500 dark:text-[#d4af37]/80'
-                }`}
-              >
-                {isNext ? 'الصلاة القادمة' : 'مؤكد'}
-              </span>
+              <div className="flex items-center justify-center gap-1">
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full ${
+                    isNext ? 'bg-[#042118] text-[#d4af37]' : 'bg-slate-100 dark:bg-[#042118] text-slate-500 dark:text-[#d4af37]/80'
+                  }`}
+                >
+                  {isNext ? 'الصلاة القادمة' : 'مؤكد'}
+                </span>
+              </div>
             </div>
           );
         })}
+      </div>
+
+      {/* Quick Method and Juristic Settings Bar */}
+      <div className="bg-white dark:bg-[#063321] border border-slate-200 dark:border-[#d4af37]/25 rounded-3xl p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-[#d4af37]/20 pb-3">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-[#d4af37]" />
+            <h3 className="font-bold text-sm sm:text-base text-slate-800 dark:text-[#f5f2ed]">
+              طريقة الحساب والتقويم الفلكي المعتمد:
+            </h3>
+          </div>
+          <span className="text-xs text-[#d4af37] font-semibold">
+            {activeMethodObj.country}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700 dark:text-[#f5f2ed]/80 block">
+              التقويم / الهيئة الشرعية:
+            </label>
+            <select
+              value={settings.prayerCalcMethod}
+              onChange={e => {
+                const newMethod = e.target.value as AppSettings['prayerCalcMethod'];
+                updateSettings({ prayerCalcMethod: newMethod });
+                showToast(`تم تغيير التقويم إلى: ${CALCULATION_METHODS.find(m => m.id === newMethod)?.name} 🕌`);
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-slate-50 dark:bg-[#042118] border border-slate-200 dark:border-[#d4af37]/30 text-xs text-slate-800 dark:text-[#f5f2ed] font-bold focus:outline-none focus:border-[#d4af37] cursor-pointer"
+            >
+              {CALCULATION_METHODS.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.name} ({m.country})
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-500 dark:text-[#f5f2ed]/60">
+              قاعدة العشاء: {activeMethodObj.ishaRule} • زاوية الفجر: {activeMethodObj.fajrAngle}°
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700 dark:text-[#f5f2ed]/80 block">
+              المذهب الفقهي لحساب وقت صلاة العصر:
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  updateSettings({ juristicMethod: 'shafii' });
+                  showToast('تم اختيار مذهب الجمهور (الشافعي/الحنبلي/المالكي) لصلاة العصر');
+                }}
+                className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
+                  settings.juristicMethod === 'shafii'
+                    ? 'bg-[#d4af37] text-[#042118] border-[#d4af37] shadow-sm'
+                    : 'bg-slate-50 dark:bg-[#042118] border-slate-200 dark:border-[#d4af37]/20 text-slate-700 dark:text-[#f5f2ed]'
+                }`}
+              >
+                الجمهور (ظل مثل واحد)
+              </button>
+              <button
+                onClick={() => {
+                  updateSettings({ juristicMethod: 'hanafi' });
+                  showToast('تم اختيار المذهب الحنفي لصلاة العصر');
+                }}
+                className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
+                  settings.juristicMethod === 'hanafi'
+                    ? 'bg-[#d4af37] text-[#042118] border-[#d4af37] shadow-sm'
+                    : 'bg-slate-50 dark:bg-[#042118] border-slate-200 dark:border-[#d4af37]/20 text-slate-700 dark:text-[#f5f2ed]'
+                }`}
+              >
+                المذهب الحنفي (ظل مثلين)
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-[#f5f2ed]/60">
+              في السعودية ومصر وأغلب الدول يُعتمد مذهب الجمهور افتراضياً.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Notification & Muadhin Settings Grid */}
@@ -373,7 +551,105 @@ export const PrayerTimesSection: React.FC = () => {
         </div>
       </div>
 
-      {/* City Selector Modal */}
+      {/* Manual Minute Offset Calibrator Modal */}
+      <AnimatePresence>
+        {showOffsetModal && (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-[#042118] border-2 border-[#d4af37]/40 rounded-3xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+            >
+              <div className="p-4 border-b border-[#d4af37]/25 flex justify-between items-center bg-[#063321] text-[#f5f2ed]">
+                <div className="flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-[#d4af37]" />
+                  <div>
+                    <h3 className="font-bold text-base text-[#d4af37]">المعايرة الدقيقة لمواقيت الصلاة (+/- دقيقة)</h3>
+                    <p className="text-[11px] text-slate-300">عدّل الدقائق لتطابق توقيت أذان المسجد في حيك تماماً</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowOffsetModal(false)}
+                  className="p-1.5 rounded-lg bg-[#084d32] text-[#d4af37] hover:bg-[#063321] cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-4 space-y-4 overflow-y-auto flex-1">
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                  <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <span>
+                    إذا كان توقيت المسجد أو ساعتك يختلف بمقدار دقيقة أو دقيقتين عن الحساب الفلكي، يمكنك زيادة أو إنقاص الدقائق لكل صلاة بشكل مستقل وسيقوم التطبيق بحفظها فوراً.
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {prayers.map(p => (
+                    <div
+                      key={p.key}
+                      className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#063321] border border-slate-200 dark:border-[#d4af37]/20 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{p.icon}</span>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-[#f5f2ed]">{p.name}</h4>
+                          <span className="text-xs font-mono font-bold text-[#d4af37]">{p.time}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleOffsetChange(p.key, -1)}
+                          className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-[#042118] border border-slate-300 dark:border-[#d4af37]/30 text-slate-800 dark:text-[#f5f2ed] font-bold text-sm flex items-center justify-center hover:bg-rose-500/20 hover:text-rose-400 cursor-pointer active:scale-95 transition-all"
+                          title="إنقاص دقيقة (-1)"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+
+                        <span className={`w-14 text-center text-xs font-mono font-bold ${p.offset !== 0 ? 'text-[#d4af37]' : 'text-slate-500'}`}>
+                          {p.offset > 0 ? `+${p.offset}` : p.offset} د
+                        </span>
+
+                        <button
+                          onClick={() => handleOffsetChange(p.key, 1)}
+                          className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-[#042118] border border-slate-300 dark:border-[#d4af37]/30 text-slate-800 dark:text-[#f5f2ed] font-bold text-sm flex items-center justify-center hover:bg-emerald-500/20 hover:text-emerald-400 cursor-pointer active:scale-95 transition-all"
+                          title="زيادة دقيقة (+1)"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2 flex justify-between items-center">
+                  <button
+                    onClick={handleResetOffsets}
+                    className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-[#042118] border border-slate-300 dark:border-[#d4af37]/30 text-xs font-bold text-slate-700 dark:text-[#f5f2ed] hover:text-[#d4af37] flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>تصفير التعديلات</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowOffsetModal(false);
+                      showToast('تم حفظ تعديلات المواقيت بنجاح ✓');
+                    }}
+                    className="px-5 py-2 rounded-xl bg-[#d4af37] hover:bg-[#c19b2e] text-[#042118] text-xs font-bold cursor-pointer"
+                  >
+                    حفظ وإغلاق ✓
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* City Selector Modal with Country Tabs and Search */}
       <AnimatePresence>
         {showCityPicker && (
           <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
@@ -381,16 +657,16 @@ export const PrayerTimesSection: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-[#042118] border-2 border-[#d4af37]/40 rounded-3xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl overflow-hidden"
+              className="bg-white dark:bg-[#042118] border-2 border-[#d4af37]/40 rounded-3xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
             >
               <div className="p-4 border-b border-[#d4af37]/25 flex justify-between items-center bg-[#063321] text-[#f5f2ed]">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-[#d4af37]" />
-                  <h3 className="font-bold text-base text-[#d4af37]">اختر مدينتك لحساب المواقيت</h3>
+                  <h3 className="font-bold text-base text-[#d4af37]">اختر مدينتك (السعودية، مصر، العراق، الخليج، والعالم)</h3>
                 </div>
                 <button
                   onClick={() => setShowCityPicker(false)}
-                  className="p-1 rounded-lg bg-[#084d32] text-[#d4af37] hover:bg-[#063321] cursor-pointer"
+                  className="p-1.5 rounded-lg bg-[#084d32] text-[#d4af37] hover:bg-[#063321] cursor-pointer"
                 >
                   ✕
                 </button>
@@ -403,20 +679,67 @@ export const PrayerTimesSection: React.FC = () => {
                   className="w-full py-3 px-4 rounded-2xl bg-[#d4af37] hover:bg-[#c19b2e] text-[#042118] font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
                 >
                   <Navigation className="w-4 h-4" />
-                  <span>تحديد موقعي التلقائي والبلد عبر GPS 📍</span>
+                  <span>تحديد موقعي التلقائي والبلد فورياً عبر GPS 📍</span>
                 </button>
 
-                <div className="space-y-1.5 pt-2">
-                  {POPULAR_CITIES.map(c => (
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
+                  <input
+                    type="text"
+                    value={citySearchQuery}
+                    onChange={e => setCitySearchQuery(e.target.value)}
+                    placeholder="ابحث عن المدينة (مثال: مكة، الرياض، القاهرة، الموصل، دبي...)"
+                    className="w-full py-2.5 pr-10 pl-3 rounded-xl bg-slate-50 dark:bg-[#063321] border border-slate-200 dark:border-[#d4af37]/30 text-xs text-slate-800 dark:text-[#f5f2ed] focus:outline-none focus:border-[#d4af37]"
+                  />
+                </div>
+
+                {/* Country Filter Chips */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                  {countriesList.map(country => (
                     <button
-                      key={c.name}
-                      onClick={() => handleSelectCity(c)}
-                      className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-[#063321] border border-slate-200 dark:border-[#d4af37]/20 hover:border-[#d4af37] text-right flex items-center justify-between text-xs transition-colors cursor-pointer"
+                      key={country}
+                      onClick={() => setSelectedCountryFilter(country)}
+                      className={`px-3 py-1 rounded-full whitespace-nowrap text-[11px] font-bold border transition-colors cursor-pointer ${
+                        selectedCountryFilter === country
+                          ? 'bg-[#d4af37] text-[#042118] border-[#d4af37]'
+                          : 'bg-slate-100 dark:bg-[#063321] text-slate-600 dark:text-[#f5f2ed]/70 border-slate-200 dark:border-[#d4af37]/20'
+                      }`}
                     >
-                      <span className="font-bold text-slate-800 dark:text-[#f5f2ed]">{c.name}</span>
-                      <span className="text-slate-500 dark:text-[#d4af37]">{c.country}</span>
+                      {country}
                     </button>
                   ))}
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  {filteredCities.map(c => {
+                    const isSelected = settings.locationCity.includes(c.name);
+                    return (
+                      <button
+                        key={c.name}
+                        onClick={() => handleSelectCity(c)}
+                        className={`w-full p-3 rounded-2xl border text-right flex items-center justify-between text-xs transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37] font-bold'
+                            : 'bg-slate-50 dark:bg-[#063321] border-slate-200 dark:border-[#d4af37]/20 hover:border-[#d4af37] text-slate-800 dark:text-[#f5f2ed]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-[#d4af37]" />
+                          <span className="font-bold">{c.name}</span>
+                          <span className="text-[10px] text-slate-500 dark:text-[#f5f2ed]/60">({c.country})</span>
+                        </div>
+                        <span className="text-[10px] text-[#d4af37] font-mono bg-[#042118] px-2 py-0.5 rounded border border-[#d4af37]/20">
+                          {c.defaultMethod === 'Makkah' ? 'أم القرى' : c.defaultMethod === 'Egypt' ? 'المساحة المصرية' : c.defaultMethod}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {filteredCities.length === 0 && (
+                    <div className="text-center py-6 text-xs text-slate-400">
+                      لم يتم العثور على نتائج بحث تطابق "{citySearchQuery}". يمكنك استخدام التحديد التلقائي بالـ GPS.
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

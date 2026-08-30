@@ -113,6 +113,15 @@ export interface ReadingProgress {
   lastUpdated: number;
 }
 
+export interface PrayerOffsets {
+  fajr: number;
+  sunrise: number;
+  dhuhr: number;
+  asr: number;
+  maghrib: number;
+  isha: number;
+}
+
 export interface AppSettings {
   theme: 'emerald' | 'dark' | 'sepia' | 'oled';
   fontFamily: 'Amiri' | 'Amiri Quran' | 'Scheherazade New' | 'Cairo';
@@ -122,8 +131,10 @@ export interface AppSettings {
   selectedReciterId: string;
   playbackSpeed: number;
   repeatMode: 'none' | 'ayah' | 'surah';
-  prayerCalcMethod: 'MWL' | 'ISNA' | 'Egypt' | 'Makkah' | 'Karachi';
+  prayerCalcMethod: 'Makkah' | 'Egypt' | 'MWL' | 'ISNA' | 'Karachi' | 'Dubai' | 'Qatar' | 'Kuwait' | 'Turkey' | 'Algeria' | 'Tunisia' | 'France';
   juristicMethod: 'shafii' | 'hanafi';
+  timeFormat: '12h' | '24h';
+  prayerOffsets: PrayerOffsets;
   adhanNotification: boolean;
   adhanReminderMinutes: number; // 0 (at adhan time), 5, 10, 15 minutes before
   playAdhanAudioOnTime: boolean;

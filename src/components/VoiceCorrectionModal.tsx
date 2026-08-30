@@ -141,6 +141,15 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
     }
   }, [ayahNum, surahNum, targetWords.length]);
 
+  // Synchronize teacherPlaying state with global audioState
+  useEffect(() => {
+    if (audioState.isPlaying && audioState.surahNumber === surahNum && audioState.ayahNumber === ayahNum) {
+      setTeacherPlaying(true);
+    } else {
+      setTeacherPlaying(false);
+    }
+  }, [audioState.isPlaying, audioState.surahNumber, audioState.ayahNumber, surahNum, ayahNum]);
+
   // Initialize Speech Recognition
   useEffect(() => {
     const SpeechRecognitionClass =
@@ -325,10 +334,10 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
       pauseAudio();
       setTeacherPlaying(false);
     } else {
-      // Play in Minshawi / Husary teacher style
-      playAyahAudio(surahNum, ayahNum, 'minshawi');
+      // Play current Ayah strictly with user's selected reciter in single-ayah mode
+      playAyahAudio(surahNum, ayahNum, audioState.reciter.id, true);
       setTeacherPlaying(true);
-      showToast('استمع للتلاوة الصحيحة بأحكام التجويد 🎧');
+      showToast(`استمع للتلاوة الصحيحة للآية بصوت ${audioState.reciter.name} 🎧`);
     }
   };
 
@@ -514,10 +523,14 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
                   <div className="pt-2 flex flex-wrap items-center gap-2">
                     <button
                       onClick={handlePlayTeacherAyah}
-                      className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#042118] font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
+                      className={`px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all ${
+                        teacherPlaying
+                          ? 'bg-amber-400 text-[#042118] ring-2 ring-amber-300 animate-pulse'
+                          : 'bg-amber-500 hover:bg-amber-400 text-[#042118]'
+                      }`}
                     >
-                      <Volume2 className="w-4 h-4" />
-                      <span>استمع للنطق الصحيح</span>
+                      {teacherPlaying ? <Pause className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                      <span>{teacherPlaying ? 'إيقاف التلاوة' : `استمع للنطق الصحيح (${audioState.reciter.name})`}</span>
                     </button>
                     <button
                       onClick={startListening}
@@ -585,10 +598,14 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePlayTeacherAyah}
-              className="p-3 rounded-2xl bg-[#084d32] border border-[#d4af37]/30 text-[#d4af37] hover:bg-[#d4af37] hover:text-[#042118] transition-colors flex items-center gap-2 font-bold text-xs cursor-pointer shadow-md"
+              className={`p-3 rounded-2xl border transition-colors flex items-center gap-2 font-bold text-xs cursor-pointer shadow-md ${
+                teacherPlaying
+                  ? 'bg-amber-400 text-[#042118] border-amber-300 ring-2 ring-amber-300 animate-pulse'
+                  : 'bg-[#084d32] border-[#d4af37]/30 text-[#d4af37] hover:bg-[#d4af37] hover:text-[#042118]'
+              }`}
             >
-              <Volume2 className="w-5 h-5" />
-              <span>استماع للشيخ</span>
+              {teacherPlaying ? <Pause className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+              <span>{teacherPlaying ? 'إيقاف التلاوة' : `استماع للآية بصوت ${audioState.reciter.name}`}</span>
             </button>
           </div>
 

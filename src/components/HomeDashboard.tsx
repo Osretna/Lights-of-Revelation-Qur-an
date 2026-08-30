@@ -23,6 +23,7 @@ import { useQuran } from '../context/QuranContext';
 import { SURAH_LIST } from '../data/surahList';
 import { RECITERS_LIST } from '../data/recitersData';
 import { playIslamicTone } from '../utils/adhanAudio';
+import { formatPrayerTime } from '../utils/prayerCalculator';
 import { CommunityDuasBoard } from './CommunityDuasBoard';
 import { GoogleAdBanner } from './GoogleAdBanner';
 import { DesignerSignature } from './DesignerSignature';
@@ -287,6 +288,7 @@ export const HomeDashboard: React.FC = () => {
             <div className="space-y-2.5 mb-5">
               {prayersList.map(p => {
                 const isNext = nextPrayer.nameArabic === p.name;
+                const displayTime = formatPrayerTime(p.time, settings.timeFormat || '12h');
                 return (
                   <div
                     key={p.key}
@@ -298,7 +300,7 @@ export const HomeDashboard: React.FC = () => {
                   >
                     <span className="text-sm">{p.name}</span>
                     <span className={`text-base font-mono font-bold ${isNext ? 'text-[#d4af37]' : 'text-[#042118]'}`}>
-                      {p.time}
+                      {displayTime}
                     </span>
                   </div>
                 );
