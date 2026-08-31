@@ -23,6 +23,7 @@ import {
 import { getSurahDetail } from '../data/quranSampleData';
 import { getOfflineSurahBlobUrl, isSurahSavedOffline } from '../utils/offlineAudioStorage';
 import { playAdhanAudio, triggerPrayerNotification, playIslamicTone, unlockAudioSystem } from '../utils/adhanAudio';
+import { soundManager } from '../utils/soundManager';
 
 export type AppTab =
   | 'home'
@@ -125,6 +126,10 @@ interface QuranContextType {
   selectedAyahDetail: { surahNum: number; ayah: Ayah; surahMeta: SurahMeta } | null;
   setSelectedAyahDetail: (detail: { surahNum: number; ayah: Ayah; surahMeta: SurahMeta } | null) => void;
 
+  // Active Adhan Alert Modal
+  activeAdhanAlert: { prayerName: string; cityName: string } | null;
+  closeAdhanAlert: () => void;
+
   // Voice Recitation Correction Modal
   isVoiceCorrectionOpen: boolean;
   setIsVoiceCorrectionOpen: (open: boolean) => void;
@@ -213,6 +218,12 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [selectedAyahDetail, setSelectedAyahDetail] = useState<{ surahNum: number; ayah: Ayah; surahMeta: SurahMeta } | null>(null);
   const [isVoiceCorrectionOpen, setIsVoiceCorrectionOpen] = useState<boolean>(false);
+  const [activeAdhanAlert, setActiveAdhanAlert] = useState<{ prayerName: string; cityName: string } | null>(null);
+
+  const closeAdhanAlert = () => {
+    setActiveAdhanAlert(null);
+    soundManager.stopAdhan();
+  };
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem('anwar_admin_auth') === 'true';
@@ -986,8 +997,9 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Live prayer countdown & notification ticker
   useEffect(() => {
     const updateTimes = () => {
+      const now = new Date();
       const calculated = calculatePrayerTimes(
-        new Date(),
+        now,
         settings.lat,
         settings.lng,
         settings.prayerCalcMethod,
@@ -1000,36 +1012,75 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // Check for Adhan notification
       if (settings.adhanNotification) {
-        const remainingSec = nextInfo.remainingSeconds;
-        const prayerKey = nextInfo.name as keyof typeof settings.adhanNotificationPrayers;
-        const isPrayerEnabled = settings.adhanNotificationPrayers?.[prayerKey] ?? true;
+        const currentTotalSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        const todayDateStr = calculated.date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-        if (isPrayerEnabled) {
-          // Pre-adhan reminder (e.g. 15 or 10 min before)
+        const prayerEntries: { key: keyof typeof settings.adhanNotificationPrayers; nameArabic: string; timeStr: string }[] = [
+          { key: 'fajr', nameArabic: 'الفجر', timeStr: calculated.fajr },
+          { key: 'dhuhr', nameArabic: 'الظهر', timeStr: calculated.dhuhr },
+          { key: 'asr', nameArabic: 'العصر', timeStr: calculated.asr },
+          { key: 'maghrib', nameArabic: 'المغرب', timeStr: calculated.maghrib },
+          { key: 'isha', nameArabic: 'العشاء', timeStr: calculated.isha }
+        ];
+
+        for (const prayer of prayerEntries) {
+          const isPrayerEnabled = settings.adhanNotificationPrayers?.[prayer.key] ?? true;
+          if (!isPrayerEnabled || !prayer.timeStr) continue;
+
+          // Parse prayer time "HH:MM"
+          const parts = prayer.timeStr.split(':');
+          if (parts.length < 2) continue;
+          const pHours = parseInt(parts[0], 10);
+          const pMinutes = parseInt(parts[1], 10);
+          if (isNaN(pHours) || isNaN(pMinutes)) continue;
+          const prayerTotalSec = pHours * 3600 + pMinutes * 60;
+
+          // 1. Pre-Adhan Reminder
           if (settings.adhanReminderMinutes > 0) {
-            const reminderSec = settings.adhanReminderMinutes * 60;
-            const reminderKey = `reminder_${nextInfo.name}_${calculated.date}`;
-            if (remainingSec <= reminderSec && remainingSec > reminderSec - 60 && lastNotifiedRef.current !== reminderKey) {
+            const reminderSec = prayerTotalSec - settings.adhanReminderMinutes * 60;
+            const remDiff = currentTotalSec - reminderSec;
+            const reminderKey = `reminder_${String(prayer.key)}_${todayDateStr}`;
+
+            if (remDiff >= 0 && remDiff <= 60 && lastNotifiedRef.current !== reminderKey) {
               lastNotifiedRef.current = reminderKey;
               triggerPrayerNotification(
-                `اقترب موعد صلاة ${nextInfo.nameArabic} 🕌`,
-                `متبقي ${settings.adhanReminderMinutes} دقائق على رفع أذان صلاة ${nextInfo.nameArabic}`
+                `اقترب موعد صلاة ${prayer.nameArabic} 🕌`,
+                `متبقي ${settings.adhanReminderMinutes} دقائق على رفع أذان صلاة ${prayer.nameArabic}`
               );
               playIslamicTone();
             }
           }
 
-          // Exact Adhan Time (0 remaining seconds or right at the minute)
-          const adhanKey = `adhan_${nextInfo.name}_${calculated.date}`;
-          if (remainingSec <= 2 && remainingSec >= 0 && lastNotifiedRef.current !== adhanKey) {
+          // 2. Exact Adhan Trigger (triggers precisely as the second arrives, within 60s window)
+          const adhanDiff = currentTotalSec - prayerTotalSec;
+          const adhanKey = `adhan_${String(prayer.key)}_${todayDateStr}`;
+
+          if (adhanDiff >= 0 && adhanDiff <= 60 && lastNotifiedRef.current !== adhanKey) {
             lastNotifiedRef.current = adhanKey;
+
+            // Trigger visual modal alert on screen
+            setActiveAdhanAlert({
+              prayerName: prayer.nameArabic,
+              cityName: settings.locationCity || 'مكة المكرمة'
+            });
+
+            // Trigger system / browser notification
             triggerPrayerNotification(
-              `حان الآن موعد أذان صلاة ${nextInfo.nameArabic} 🕌`,
+              `حان الآن موعد أذان صلاة ${prayer.nameArabic} 🕌`,
               `حي على الصلاة، حي على الفلاح - تقبل الله طاعتكم`
             );
+
+            // Play instant adhan audio
             if (settings.playAdhanAudioOnTime) {
-              playAdhanAudio(settings.adhanMuadhin, nextInfo.nameArabic);
+              soundManager.playAdhan(settings.adhanMuadhin);
+              playAdhanAudio(settings.adhanMuadhin, prayer.nameArabic);
             }
+
+            // Haptic vibration on mobile
+            soundManager.triggerVibration([500, 200, 500, 200, 1000]);
+
+            showToast(`حان الآن موعد أذان صلاة ${prayer.nameArabic} 🕌 تقبل الله طاعتكم`);
+            break;
           }
         }
       }
@@ -1048,7 +1099,8 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     settings.adhanReminderMinutes,
     settings.playAdhanAudioOnTime,
     settings.adhanMuadhin,
-    settings.adhanNotificationPrayers
+    settings.adhanNotificationPrayers,
+    settings.locationCity
   ]);
 
   // Automatic High-Precision GPS Geolocation & Live Reverse Geocoding
@@ -1190,6 +1242,8 @@ export const QuranProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateSettings,
         selectedAyahDetail,
         setSelectedAyahDetail,
+        activeAdhanAlert,
+        closeAdhanAlert,
         isVoiceCorrectionOpen,
         setIsVoiceCorrectionOpen,
         isAdminAuthenticated,

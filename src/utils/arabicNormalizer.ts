@@ -1,7 +1,8 @@
 /**
- * Arabic and Quranic Text Normalizer
- * Specially designed for Voice Speech Recognition on Mobile & Desktop
- * Fixes mobile STT issues with لفظ الجلالة (Allah), Ligatures, Hamzat Wasl, Dagger Alifs, and Punctuation.
+ * Arabic and Quranic Text Normalizer & Phonetic Recitation Matcher
+ * Specially calibrated for Quran Voice Speech Recognition on Mobile & Desktop.
+ * Accurately handles لفظ الجلالة (Allah), Ligatures, Wasl Hamzas, Dagger Alifs,
+ * Quranic Orthography (الرسم العثماني), and Speech-to-Text Dialect/Particle Variations.
  */
 
 // Arabic Diacritics Regex (Tashkeel, Tanween, Shaddah, Sukun, Dagger Alif, Quranic signs)
@@ -11,7 +12,7 @@ const ALLAH_LIGATURE_REGEX = /\uFDF2/g;
 const BASMALAH_LIGATURE_REGEX = /\uFDFD/g;
 const NON_ARABIC_CHAR_REGEX = /[^\u0621-\u064A\u0671\s0-9]/g;
 
-// Convert Numbers to Arabic Words
+// Convert Numbers to Arabic Words (STT often converts "أحد" to "1" or "١")
 const NUMBER_MAP: Record<string, string> = {
   '0': 'صفر', '٠': 'صفر',
   '1': 'احد', '١': 'احد',
@@ -26,6 +27,21 @@ const NUMBER_MAP: Record<string, string> = {
   '10': 'عشره', '١٠': 'عشره'
 };
 
+// Quranic Orthographic Variants (الرسم العثماني مقابل الإملاء الصوتي القياسي)
+const ORTHOGRAPHIC_REPLACEMENTS: [RegExp, string][] = [
+  [/صلو[ةه]/g, 'صلاه'],
+  [/زكو[ةه]/g, 'زكاه'],
+  [/حيو[ةه]/g, 'حياه'],
+  [/ربو[ا]/g, 'ربا'],
+  [/مشكو[ةه]/g, 'مشكاه'],
+  [/نجو[ةه]/g, 'نجاه'],
+  [/الغدو[ةه]/g, 'الغداه'],
+  [/منو[ةه]/g, 'مناة'],
+  [/الرحمٰن|الرحمـٰن|الرحمـن/g, 'الرحمن'],
+  [/ايـٰك|ايـك/g, 'اياك'],
+  [/مـٰلك|مـلك/g, 'مالك']
+];
+
 /**
  * Normalizes raw Arabic / Quranic text for speech recognition comparison
  */
@@ -34,7 +50,7 @@ export function normalizeArabicText(text: string): string {
 
   let normalized = text;
 
-  // 1. Replace special Islamic ligatures first
+  // 1. Replace special Islamic Unicode ligatures first
   normalized = normalized.replace(ALLAH_LIGATURE_REGEX, 'الله');
   normalized = normalized.replace(BASMALAH_LIGATURE_REGEX, 'بسم الله الرحمن الرحيم');
 
@@ -42,8 +58,8 @@ export function normalizeArabicText(text: string): string {
   normalized = normalized.replace(TASHKEEL_REGEX, '');
   normalized = normalized.replace(TATWEEL_REGEX, '');
 
-  // 3. Normalize all forms of Alif (أ, إ, آ, ٱ) and Hamza to standard 'ا'
-  normalized = normalized.replace(/[أإآٱ]/g, 'ا');
+  // 3. Normalize all forms of Alif (أ, إ, آ, ٱ, ٲ, ٳ, ٴ) to standard 'ا'
+  normalized = normalized.replace(/[أإآٱٲٳٴ]/g, 'ا');
   
   // 4. Normalize Taa Marbuta (ة) to Haa (ه)
   normalized = normalized.replace(/ة/g, 'ه');
@@ -58,27 +74,65 @@ export function normalizeArabicText(text: string): string {
   // 7. Normalize standalone Hamza (ء) at word endings or middles
   normalized = normalized.replace(/ء/g, 'ا');
 
-  // 8. Replace digits with Arabic phonetic words (Mobile speech often returns "1" for "أحد")
+  // 8. Apply Quranic orthographic mappings (Uthmani to standard phonetic)
+  for (const [pattern, replacement] of ORTHOGRAPHIC_REPLACEMENTS) {
+    normalized = normalized.replace(pattern, replacement);
+  }
+
+  // 9. Replace digits with Arabic phonetic words (Mobile speech often returns "1" for "أحد")
   normalized = normalized.replace(/[0-9٠-٩]+/g, (match) => {
     return NUMBER_MAP[match] || match;
   });
 
-  // 9. Remove non-Arabic characters & punctuation
+  // 10. Remove non-Arabic characters & punctuation
   normalized = normalized.replace(NON_ARABIC_CHAR_REGEX, ' ');
 
-  // 10. Collapse multiple spaces into single space
+  // 11. Collapse multiple spaces into single space
   normalized = normalized.replace(/\s+/g, ' ').trim();
 
   return normalized;
 }
 
 /**
- * Check if word is لفظ الجلالة (Allah) or derivative
+ * Check if word is لفظ الجلالة (Allah) or its various prefixes/derivatives
  */
 export function isLafzAlJalalah(word: string): boolean {
-  const norm = normalizeArabicText(word);
-  const allahForms = ['الله', 'لله', 'والله', 'بالله', 'فالله', 'تالله', 'اللّه', 'اللَّه', 'اله', 'الاه', 'رب', 'ربنا'];
-  return allahForms.includes(norm);
+  if (!word) return false;
+  const norm = normalizeArabicText(word).replace(/\s+/g, '');
+  
+  const allahForms = new Set([
+    'الله',
+    'لله',
+    'والله',
+    'بالله',
+    'فالله',
+    'تالله',
+    'ولله',
+    'فلله',
+    'اللهم',
+    'واللهم',
+    'باللهم',
+    'اله',
+    'الاه',
+    'الهنا',
+    'الهكم',
+    'الهم',
+    'رب',
+    'ربي',
+    'ربنا',
+    'ربكم',
+    'ربهم',
+    'الرب'
+  ]);
+
+  if (allahForms.has(norm)) return true;
+
+  // Check prefix forms (e.g. "و" + "الله" or "ل" + "الله")
+  if (norm.endsWith('الله') || norm.endsWith('لله') || norm.endsWith('اللهم')) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -92,7 +146,7 @@ export function splitQuranTextIntoWords(quranAyahText: string): { original: stri
   
   return rawWords.map((raw) => {
     // Remove Quranic ayah markers e.g. ﴿١﴾ or (1)
-    const cleanedRaw = raw.replace(/[0-9٠-٩\(\)\[\]\{\}\<\>﴿﴾]/g, '').trim();
+    const cleanedRaw = raw.replace(/[0-9٠-٩\(\)\[\]\{\}\<\>﴿﴾«»"'\.\,\،\؛\؟\:\-]/g, '').trim();
     return {
       original: raw,
       clean: normalizeArabicText(cleanedRaw)
@@ -145,9 +199,28 @@ export function calculateSimilarity(str1: string, str2: string): number {
   if (norm1 === norm2) return 1.0;
   if (!norm1.length || !norm2.length) return 0.0;
 
+  // Special boost for لفظ الجلالة
+  if (isLafzAlJalalah(norm1) && isLafzAlJalalah(norm2)) {
+    return 1.0;
+  }
+
   const maxLen = Math.max(norm1.length, norm2.length);
   const distance = levenshteinDistance(norm1, norm2);
   return (maxLen - distance) / maxLen;
+}
+
+/**
+ * Phonetic letter normalization for common Arabic recitation & dialect variations
+ * (e.g. ص <-> س, ض <-> ظ, ذ <-> ز)
+ */
+function phoneticSimplify(word: string): string {
+  return normalizeArabicText(word)
+    .replace(/[صسث]/g, 'س')
+    .replace(/[ضظذز]/g, 'ز')
+    .replace(/[طت]/g, 'ت')
+    .replace(/[قكغ]/g, 'ك')
+    .replace(/[حخ]/g, 'ح')
+    .replace(/[عء]/g, 'ا');
 }
 
 /**
@@ -159,19 +232,37 @@ export function isWordMatch(targetClean: string, spokenClean: string): boolean {
   const target = normalizeArabicText(targetClean);
   const spoken = normalizeArabicText(spokenClean);
 
-  // Exact match
+  // 1. Exact normalized match
   if (target === spoken) return true;
 
-  // SPECIAL HANDLING: لفظ الجلالة (Allah)
-  // On mobile, "الله" might be transcribed as "لله", "والله", "بالله", "فالله", "اله", "اللّه", or "الله"
+  // 2. SPECIAL HANDLING: لفظ الجلالة (Allah)
+  // Handles: "الله", "لله", "والله", "بالله", "فالله", "تالله", "اله", "الاه", "اللهم"
   if (isLafzAlJalalah(target) && isLafzAlJalalah(spoken)) {
     return true;
   }
 
-  // Prefix matching for Arabic particles (و, ف, ب, ل, ك, س, ال)
-  // E.g., target: "الرحمن", spoken: "رحمن" or "والرحمن"
-  const prefixes = ['و', 'ف', 'ب', 'ل', 'ك', 'س', 'ال', 'وال', 'فال', 'بال', 'لل'];
-  
+  // 3. Common Quranic Phonetic & Dagger Alif variations
+  // E.g. الرحمن <-> الرحمان, هذا <-> هاذا, ذلك <-> ذالك, الصراط <-> السراط
+  if (
+    (target === 'الرحمن' && (spoken === 'الرحمان' || spoken === 'رحمن' || spoken === 'رحمان')) ||
+    (target === 'الرحيم' && spoken === 'رحيم') ||
+    (target === 'هذا' && spoken === 'هاذا') ||
+    (target === 'ذلك' && spoken === 'ذالك') ||
+    (target === 'الصراط' && (spoken === 'السراط' || spoken === 'صراط' || spoken === 'سراط')) ||
+    (target === 'صراط' && (spoken === 'سراط' || spoken === 'الصراط')) ||
+    (target === 'احد' && (spoken === 'واحد' || spoken === '١' || spoken === '1')) ||
+    (target === 'المغضوب' && (spoken === 'المغظوب' || spoken === 'مغضوب' || spoken === 'مغظوب')) ||
+    (target === 'الضالين' && (spoken === 'الظالين' || spoken === 'ضالين' || spoken === 'ظالين')) ||
+    (target === 'اياك' && (spoken === 'واياك' || spoken === 'ياك')) ||
+    (target === 'واياك' && (spoken === 'اياك' || spoken === 'و اياك')) ||
+    (target === 'نعبد' && spoken === 'نعبدو') ||
+    (target === 'نستعين' && spoken === 'نستعينو')
+  ) {
+    return true;
+  }
+
+  // 4. Prefix matching for Arabic particles (و, ف, ب, ل, ك, س, ال, وال, فال, بال, لل, كال)
+  const prefixes = ['و', 'ف', 'ب', 'ل', 'ك', 'س', 'ال', 'وال', 'فال', 'بال', 'لل', 'كال'];
   for (const prefix of prefixes) {
     if (target.startsWith(prefix) && target.slice(prefix.length) === spoken) {
       return true;
@@ -181,9 +272,8 @@ export function isWordMatch(targetClean: string, spokenClean: string): boolean {
     }
   }
 
-  // Pronoun suffix matching (ه, ها, هم, نا, كم, ي)
-  // E.g. target: "ربه", spoken: "رب" or "ربهم"
-  const suffixes = ['ه', 'ها', 'هم', 'هن', 'نا', 'كم', 'كن', 'ي', 'ك'];
+  // 5. Pronoun & plural suffix matching (ه, ها, هم, هن, نا, كم, كن, ي, ك, ون, ين, ات)
+  const suffixes = ['ه', 'ها', 'هم', 'هن', 'نا', 'كم', 'كن', 'ي', 'ك', 'ون', 'ين', 'ان', 'ات', 'وا'];
   for (const suffix of suffixes) {
     if (target.endsWith(suffix) && target.slice(0, -suffix.length) === spoken) {
       return true;
@@ -193,18 +283,25 @@ export function isWordMatch(targetClean: string, spokenClean: string): boolean {
     }
   }
 
-  // Substring inclusion if word is long enough
+  // 6. Substring inclusion if word is sufficiently long (>= 4 chars)
   if (target.length >= 4 && spoken.includes(target)) return true;
   if (spoken.length >= 4 && target.includes(spoken)) return true;
 
-  // Levenshtein distance check
+  // 7. Phonetically simplified match
+  if (phoneticSimplify(target) === phoneticSimplify(spoken)) {
+    return true;
+  }
+
+  // 8. Levenshtein distance check with length-adaptive tolerance
   const maxLen = Math.max(target.length, spoken.length);
   const dist = levenshteinDistance(target, spoken);
 
-  if (maxLen <= 3) {
-    return dist <= 1; // 1 typo allowed for short words (e.g. قل -> قيل / هو -> ها)
-  } else if (maxLen <= 6) {
-    return dist <= 2; // 2 typos allowed for medium words (e.g. الصراط -> السراط)
+  if (maxLen <= 2) {
+    return dist === 0; // Short 2-letter words like "قل", "هو", "في" need exact match
+  } else if (maxLen <= 4) {
+    return dist <= 1; // 1 typo allowed for 3-4 letter words (e.g. احد / واحد, ملك / مالك)
+  } else if (maxLen <= 7) {
+    return dist <= 2; // 2 typos allowed for medium words (e.g. العالمين / العالمين)
   } else {
     return dist <= 3; // 3 typos allowed for long words (e.g. المستعرضين / المغضوب)
   }

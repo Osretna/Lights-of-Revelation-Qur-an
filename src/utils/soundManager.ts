@@ -17,37 +17,37 @@ export const ADHAN_VOICES: AdhanVoice[] = [
     id: 'makkah',
     name: 'أذان الحرم المكي الشريف',
     muezzin: 'الشيخ علي ملا - مكة المكرمة',
-    url: 'https://cdn.islamic.network/audio/adhan/makkah.mp3'
+    url: '/adhan-makkah.mp3'
   },
   {
     id: 'madinah',
     name: 'أذان المسجد النبوي الشريف',
     muezzin: 'المدينة المنورة',
-    url: 'https://cdn.islamic.network/audio/adhan/madina.mp3'
+    url: '/adhan-madinah.mp3'
   },
   {
-    id: 'alaqsa',
-    name: 'أذان المسجد الأقصى المبارك',
-    muezzin: 'القدس الشريف',
-    url: 'https://cdn.islamic.network/audio/adhan/alaqsa.mp3'
+    id: 'abdul_basit',
+    name: 'أذان الشيخ عبد الباسط عبد الصمد',
+    muezzin: 'الشيخ عبد الباسط عبد الصمد',
+    url: '/adhan-abdulbasit.mp3'
   },
   {
-    id: 'alafasy',
-    name: 'أذان مشاري راشد العفاسي',
-    muezzin: 'مشاري العفاسي',
-    url: 'https://cdn.islamic.network/audio/adhan/alafasy.mp3'
+    id: 'egypt',
+    name: 'أذان جمهورية مصر العربية',
+    muezzin: 'مسجد الإمام الحسين - القاهرة',
+    url: '/adhan-egypt.mp3'
   },
   {
     id: 'cairo',
     name: 'أذان القاهرة - صوت مصري أصيل',
-    muezzin: 'الشيخ محمد رفعت / إذاعة القرآن الكريم',
-    url: 'https://cdn.islamic.network/audio/adhan/cairo.mp3'
+    muezzin: 'إذاعة القرآن الكريم من القاهرة',
+    url: '/adhan-egypt.mp3'
   },
   {
     id: 'fajr',
     name: 'أذان الفجر (الصلاة خير من النوم)',
-    muezzin: 'الحرم المكي - لصلاة الفجر',
-    url: 'https://cdn.islamic.network/audio/adhan/fajr.mp3',
+    muezzin: 'الحرم المكي الشريف',
+    url: '/adhan-makkah.mp3',
     isFajrOnly: true
   }
 ];

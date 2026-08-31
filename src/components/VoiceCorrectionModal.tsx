@@ -21,63 +21,19 @@ import { useQuran } from '../context/QuranContext';
 import { SURAH_LIST } from '../data/surahList';
 import { Ayah, SurahDetail } from '../types/quran';
 import { getSurahDetail } from '../data/quranSampleData';
+import {
+  normalizeArabicText,
+  isWordMatch,
+  isLafzAlJalalah,
+  calculateSimilarity,
+  splitQuranTextIntoWords
+} from '../utils/arabicNormalizer';
+import { soundManager } from '../utils/soundManager';
 
 interface VoiceCorrectionModalProps {
   initialSurahNum?: number;
   initialAyahNum?: number;
   onClose: () => void;
-}
-
-// Arabic Text Normalizer for accurate Quran recitation comparison
-export function normalizeQuranArabic(text: string): string {
-  if (!text) return '';
-  return text
-    // Remove all Tashkeel / Harakat
-    .replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]/g, '')
-    // Remove Quranic stop marks and symbols
-    .replace(/[\u06D6\u06D7\u06D8\u06D9\u06DA\u06DB\u06DC\u06DF\u06E0\u06E2\u06E3\u06E4\u06E5\u06E6\u06E7\u06E8\u06EA\u06EB\u06EC\u06ED]/g, '')
-    // Unify Hamzas and Alifs
-    .replace(/[أإآٱ]/g, 'ا')
-    .replace(/ء/g, '')
-    .replace(/[ؤئ]/g, 'ي')
-    // Unify Taa Marboota and Haa
-    .replace(/ة/g, 'ه')
-    // Unify Yaa / Alif Maqsoora
-    .replace(/ى/g, 'ي')
-    // Remove punctuation & numbers
-    .replace(/[0-9\u0660-\u0669\(\)\[\]\{\}«»"'\.\,\،\؛\؟\:\-]/g, '')
-    // Collapse spaces
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// String similarity (Levenshtein Distance)
-function similarity(s1: string, s2: string): number {
-  if (s1 === s2) return 1.0;
-  if (!s1 || !s2) return 0.0;
-  const longer = s1.length > s2.length ? s1 : s2;
-  const shorter = s1.length > s2.length ? s2 : s1;
-  const longerLength = longer.length;
-  if (longerLength === 0) return 1.0;
-
-  const costs: number[] = [];
-  for (let i = 0; i <= longer.length; i++) {
-    let lastValue = i;
-    for (let j = 0; j <= shorter.length; j++) {
-      if (i === 0) {
-        costs[j] = j;
-      } else if (j > 0) {
-        let newValue = costs[j - 1];
-        if (longer.charAt(i - 1) !== shorter.charAt(j - 1)) {
-          newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-        }
-        costs[j - 1] = lastValue;
-        lastValue = newValue;
-      }
-    }
-    if (i > 0) costs[shorter.length] = lastValue;
-  }
-  return (longerLength - costs[shorter.length]) / longerLength;
 }
 
 export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
@@ -106,8 +62,11 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
 
   const recognitionRef = useRef<any>(null);
   const currentAyah = surahData?.ayahs?.find(a => a.numberInSurah === ayahNum) || null;
-  const targetWords = currentAyah ? currentAyah.text.trim().split(/\s+/) : [];
-  const normalizedTargetWords = targetWords.map(normalizeQuranArabic);
+  
+  // Extract clean structured words from Ayah text
+  const targetWordsData = currentAyah ? splitQuranTextIntoWords(currentAyah.text) : [];
+  const targetWords = targetWordsData.map(w => w.original);
+  const normalizedTargetWords = targetWordsData.map(w => w.clean);
 
   // Load Surah Details
   useEffect(() => {
@@ -152,8 +111,8 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
 
   // Initialize Speech Recognition
   useEffect(() => {
-    const SpeechRecognitionClass =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const win = typeof window !== 'undefined' ? (window as any) : null;
+    const SpeechRecognitionClass = win?.SpeechRecognition || win?.webkitSpeechRecognition;
 
     if (!SpeechRecognitionClass) {
       setSpeechSupported(false);
@@ -164,7 +123,7 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'ar-SA';
-    recognition.maxAlternatives = 3;
+    recognition.maxAlternatives = 5;
 
     recognition.onresult = (event: any) => {
       let finalStr = '';
@@ -175,7 +134,7 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
         if (item.isFinal) {
           finalStr += item[0].transcript + ' ';
         } else {
-          interimStr += item[0].transcript;
+          interimStr += item[0].transcript + ' ';
         }
       }
 
@@ -183,7 +142,7 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
       setTranscript(finalStr);
       setInterimText(interimStr);
 
-      evaluateRecitation(combinedText);
+      evaluateRecitation(combinedText, event.results[event.results.length - 1]?.isFinal || false);
     };
 
     recognition.onerror = (event: any) => {
@@ -215,13 +174,13 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
         // ignore
       }
     };
-  }, [isListening, hasError, isCompleted, normalizedTargetWords]);
+  }, [isListening, hasError, isCompleted, normalizedTargetWords.length]);
 
-  // Evaluate user speech against Ayah words
-  const evaluateRecitation = (spokenFullText: string) => {
+  // Evaluate user speech against Ayah words with robust phonetic & continuous matching
+  const evaluateRecitation = (spokenFullText: string, isFinalChunk: boolean = false) => {
     if (!spokenFullText || normalizedTargetWords.length === 0) return;
 
-    const spokenTokens = normalizeQuranArabic(spokenFullText)
+    const spokenTokens = normalizeArabicText(spokenFullText)
       .split(/\s+/)
       .filter(Boolean);
 
@@ -234,20 +193,75 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
     let currentTargetIdx = 0;
     let mismatchFound = false;
 
-    for (let i = 0; i < spokenTokens.length && currentTargetIdx < normalizedTargetWords.length; i++) {
-      const spokenWord = spokenTokens[i];
+    for (let sIdx = 0; sIdx < spokenTokens.length && currentTargetIdx < normalizedTargetWords.length; sIdx++) {
+      const spokenWord = spokenTokens[sIdx];
       const targetWord = normalizedTargetWords[currentTargetIdx];
 
-      const sim = similarity(spokenWord, targetWord);
-      // High tolerance for slight speech-to-text accent variations
-      if (sim >= 0.72 || spokenWord.includes(targetWord) || targetWord.includes(spokenWord)) {
+      // 1. Direct or Phonetic Match (includes all variations of لفظ الجلالة)
+      if (isWordMatch(targetWord, spokenWord)) {
         newStatuses[currentTargetIdx] = 'correct';
         currentTargetIdx++;
-      } else {
-        // Check if user skipped or said wrong word
+        continue;
+      }
+
+      // 2. Compound Multi-Word Match in Speech (e.g., spoken: "بسم" + "الله" or target: "بسمالله")
+      if (sIdx + 1 < spokenTokens.length) {
+        const combinedSpoken = spokenWord + spokenTokens[sIdx + 1];
+        if (isWordMatch(targetWord, combinedSpoken)) {
+          newStatuses[currentTargetIdx] = 'correct';
+          currentTargetIdx++;
+          sIdx++; // skip next spoken token since it was part of this target word
+          continue;
+        }
+      }
+
+      // 3. Combined Target Match (e.g., spoken: "بسمالله" for target: ["بسم", "الله"])
+      if (currentTargetIdx + 1 < normalizedTargetWords.length) {
+        const combinedTarget = targetWord + normalizedTargetWords[currentTargetIdx + 1];
+        if (isWordMatch(combinedTarget, spokenWord)) {
+          newStatuses[currentTargetIdx] = 'correct';
+          newStatuses[currentTargetIdx + 1] = 'correct';
+          currentTargetIdx += 2;
+          continue;
+        }
+      }
+
+      // 4. Lookahead 1 word: check if user skipped or omitted a minor particle
+      if (currentTargetIdx + 1 < normalizedTargetWords.length) {
         const nextTargetWord = normalizedTargetWords[currentTargetIdx + 1];
-        if (nextTargetWord && similarity(spokenWord, nextTargetWord) >= 0.75) {
-          // User skipped a word!
+        if (isWordMatch(nextTargetWord, spokenWord)) {
+          // User moved to the next word
+          newStatuses[currentTargetIdx] = 'error';
+          newStatuses[currentTargetIdx + 1] = 'correct';
+          
+          if (isFinalChunk) {
+            mismatchFound = true;
+            setHasError(true);
+            setErrorDetails({
+              expected: targetWords[currentTargetIdx],
+              spoken: spokenWord,
+              index: currentTargetIdx
+            });
+            soundManager.playErrorChime();
+            stopListening();
+            showToast(`تنبيه: يرجى نطق كلمة ﴿${targetWords[currentTargetIdx]}﴾`);
+            break;
+          }
+          currentTargetIdx += 2;
+          continue;
+        }
+      }
+
+      // 5. If word doesn't match and it's the last word in the spoken stream
+      if (sIdx === spokenTokens.length - 1 && !isFinalChunk) {
+        // Still speaking interim syllables, do NOT interrupt user
+        break;
+      }
+
+      // 6. Definite Mismatch on final or completed chunk
+      if (isFinalChunk && sIdx >= spokenTokens.length - 1) {
+        const sim = calculateSimilarity(spokenWord, targetWord);
+        if (sim < 0.65 && !isLafzAlJalalah(targetWord)) {
           mismatchFound = true;
           newStatuses[currentTargetIdx] = 'error';
           setHasError(true);
@@ -256,19 +270,7 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
             spoken: spokenWord,
             index: currentTargetIdx
           });
-          stopListening();
-          showToast(`تنبيه: تم تجاوز كلمة "${targetWords[currentTargetIdx]}"`);
-          break;
-        } else {
-          // Word pronounced incorrectly
-          mismatchFound = true;
-          newStatuses[currentTargetIdx] = 'error';
-          setHasError(true);
-          setErrorDetails({
-            expected: targetWords[currentTargetIdx],
-            spoken: spokenWord,
-            index: currentTargetIdx
-          });
+          soundManager.playErrorChime();
           stopListening();
           break;
         }
@@ -280,12 +282,17 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
         newStatuses[currentTargetIdx] = 'current';
       } else {
         // Recited all words correctly!
+        for (let i = 0; i < normalizedTargetWords.length; i++) {
+          newStatuses[i] = 'correct';
+        }
         setIsCompleted(true);
         setHasError(false);
         setErrorDetails(null);
+        soundManager.playSuccessChime();
+        soundManager.triggerVibration([100, 50, 100]);
         stopListening();
         recordCorrectionAttempt(true);
-        showToast('ما شاء الله! تلاوة صحيحة ومباركة 🌟');
+        showToast('ما شاء الله! تلاوة صحيحة ومتقنة 🌟');
       }
     }
 
@@ -293,6 +300,7 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
   };
 
   const startListening = () => {
+    soundManager.unlockAudio();
     setHasError(false);
     setErrorDetails(null);
     setIsCompleted(false);
@@ -481,11 +489,11 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
                   const status = wordsStatus[idx] || 'pending';
                   let statusClass = 'text-[#f5f2ed] bg-transparent';
                   if (status === 'correct') {
-                    statusClass = 'text-emerald-300 bg-emerald-950/70 border border-emerald-500/40 rounded-xl px-2 py-0.5 font-bold shadow-sm';
+                    statusClass = 'text-emerald-300 bg-emerald-950/70 border border-emerald-500/40 rounded-xl px-2.5 py-1 font-bold shadow-sm';
                   } else if (status === 'current') {
-                    statusClass = 'text-[#d4af37] bg-[#d4af37]/20 border border-[#d4af37] rounded-xl px-2 py-0.5 animate-pulse';
+                    statusClass = 'text-[#d4af37] bg-[#d4af37]/20 border border-[#d4af37] rounded-xl px-2.5 py-1 animate-pulse';
                   } else if (status === 'error') {
-                    statusClass = 'text-rose-300 bg-rose-950/80 border-2 border-rose-500 rounded-xl px-2 py-0.5 font-bold shadow-md';
+                    statusClass = 'text-rose-300 bg-rose-950/80 border-2 border-rose-500 rounded-xl px-2.5 py-1 font-bold shadow-md';
                   }
 
                   return (
@@ -512,10 +520,10 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
                 >
                   <div className="flex items-center gap-2 text-rose-400 font-bold">
                     <AlertTriangle className="w-5 h-5" />
-                    <span>تنبيه: تم رصد خطأ في التلاوة</span>
+                    <span>تنبيه: تم رصد اختلاف في التلاوة</span>
                   </div>
                   <p className="leading-relaxed">
-                    النطق الصحيح في موضع الخطأ هو: <span className="font-quran text-lg text-emerald-300 font-bold bg-black/40 px-2 py-0.5 rounded-lg border border-emerald-500/30">﴿{errorDetails.expected}﴾</span>
+                    النطق الصحيح في موضع الخطأ هو: <span className="font-quran text-lg text-emerald-300 font-bold bg-black/40 px-2.5 py-1 rounded-lg border border-emerald-500/30">﴿{errorDetails.expected}﴾</span>
                   </p>
                   {errorDetails.spoken && (
                     <p className="text-[11px] text-rose-300/80">
@@ -651,3 +659,4 @@ export const VoiceCorrectionModal: React.FC<VoiceCorrectionModalProps> = ({
     </div>
   );
 };
+

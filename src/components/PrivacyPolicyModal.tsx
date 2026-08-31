@@ -10,7 +10,7 @@ interface PrivacyPolicyModalProps {
 export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ onClose }) => {
   const { showToast } = useQuran();
   const [copied, setCopied] = React.useState(false);
-  const supportEmail = 's.mohamed1111111@gmail.com';
+  const supportEmail = 'M.Elsayed1111111@gmail.com';
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(supportEmail);

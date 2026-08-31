@@ -474,11 +474,11 @@ export const HomeDashboard: React.FC = () => {
           </a>
           <span className="text-[#d4af37]/40">•</span>
           <a
-            href="mailto:s.mohamed1111111@gmail.com"
+            href="mailto:M.Elsayed1111111@gmail.com"
             className="text-slate-400 hover:text-[#d4af37] transition-colors font-mono"
             dir="ltr"
           >
-            s.mohamed1111111@gmail.com
+            M.Elsayed1111111@gmail.com
           </a>
         </div>
         <p className="text-[11px] text-slate-500">

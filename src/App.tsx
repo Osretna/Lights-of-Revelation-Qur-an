@@ -26,6 +26,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { SponsorshipBanner } from './components/SponsorshipBanner';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { VoiceCorrectionModal } from './components/VoiceCorrectionModal';
+import { AdhanAlertModal } from './components/AdhanAlertModal';
 
 const AppContent: React.FC = () => {
   const {
@@ -36,6 +37,8 @@ const AppContent: React.FC = () => {
     audioState,
     isVoiceCorrectionOpen,
     setIsVoiceCorrectionOpen,
+    activeAdhanAlert,
+    closeAdhanAlert,
     selectedSurahNum,
     selectedAyahNum
   } = useQuran();
@@ -112,6 +115,16 @@ const AppContent: React.FC = () => {
           initialSurahNum={selectedSurahNum}
           initialAyahNum={selectedAyahNum}
           onClose={() => setIsVoiceCorrectionOpen(false)}
+        />
+      )}
+
+      {/* Adhan Live Alert Modal */}
+      {activeAdhanAlert && (
+        <AdhanAlertModal
+          isOpen={!!activeAdhanAlert}
+          prayerName={activeAdhanAlert.prayerName}
+          cityName={activeAdhanAlert.cityName}
+          onClose={closeAdhanAlert}
         />
       )}
 
